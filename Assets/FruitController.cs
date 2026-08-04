@@ -64,7 +64,7 @@ public class FruitController : MonoBehaviour
 
         if (collision.gameObject == GameController.Instance.LosingLine)
         {
-            Debug.Log("GG!");
+            GameController.Instance.ResetGame();
         }
     }
 }

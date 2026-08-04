@@ -13,6 +13,11 @@ public class SpawnerController : MonoBehaviour
     private GameObject[] fruits;
     private GameObject pickedFruit;
 
+    public Transform leftBoundary;
+    public Transform rightBoundary;
+
+    private bool onCooldown = false;
+
     private void Start()
     {
         fruits = new GameObject[3] { ApplePrefab, OrangePrefab, LemonPrefab};
@@ -55,8 +60,25 @@ public class SpawnerController : MonoBehaviour
 
     void SpawnFruit(Vector3 spawnPoint)
     {
-        Instantiate(pickedFruit, spawnPoint, Quaternion.identity);
+        if (spawnPoint.x < leftBoundary.position.x || spawnPoint.x > rightBoundary.position.x)
+            return;
+
+        if (onCooldown)
+            return;
+
+        StartCoroutine(StartSpawnCooldown());
+
+        var go = Instantiate(pickedFruit, spawnPoint, Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f)));
+        go.transform.SetParent(GameController.Instance.fruitHolder.transform);
         SelectNewFruit();
         GameController.Instance.UpdatePoints(1);
+    }
+
+    IEnumerator StartSpawnCooldown()
+    {
+        onCooldown = true;
+        yield return new WaitForSeconds(0.5f);
+        onCooldown = false;
+
     }
 }

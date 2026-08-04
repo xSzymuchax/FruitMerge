@@ -10,6 +10,10 @@ public class GameController : MonoBehaviour
     public TextMeshProUGUI pointsCounter;
     public int points;
 
+    public TextMeshProUGUI FinalScoreText;
+    public GameObject finalScoreCanvas;
+    public GameObject fruitHolder;
+
     private void Start()
     {
         Instance = this;
@@ -20,5 +24,20 @@ public class GameController : MonoBehaviour
     {
         points += amount;
         pointsCounter.text = points.ToString();
+    }
+
+    public void ResetGame()
+    {
+        AudioController.Instance.PlaySadHorn();
+
+        finalScoreCanvas.SetActive(true);
+        FinalScoreText.text = $"Twój wynik:\n{points}";
+
+        foreach (Transform t in fruitHolder.transform)
+        {
+            Destroy(t.gameObject);
+        }
+
+        points = 0;
     }
 }

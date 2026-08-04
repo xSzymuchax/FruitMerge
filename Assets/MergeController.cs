@@ -37,12 +37,56 @@ public class MergeController : MonoBehaviour
         GameObject fruitToSpawn = FindFruitToSpawn(fruit1.Type);
 
         Vector3 spawnPos = (fruit1.transform.position + fruit2.gameObject.transform.position) / 2f;
-        Quaternion spawnRot = Quaternion.identity;
+        Quaternion spawnRot = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f));
 
-        Instantiate(fruitToSpawn, spawnPos, spawnRot);
+        int fruitLayer = LayerMask.NameToLayer("Fruits");
+        int wallLayer = LayerMask.NameToLayer("Walls");
 
+        LayerMask collisionMask = (1 << fruitLayer) | (1 << wallLayer);
+
+
+        // Tworzymy tymczasowo owoc do sprawdzenia collidera
+        GameObject tempFruit = Instantiate(fruitToSpawn, spawnPos, spawnRot);
+
+        Collider2D tempCollider = tempFruit.GetComponent<Collider2D>();
+        tempCollider.enabled = false;
+
+        int attempts = 0;
+
+        while (attempts < 50)
+        {
+            tempCollider.enabled = true;
+
+            Collider2D[] hits = new Collider2D[10];
+
+            ContactFilter2D filter = new ContactFilter2D();
+            filter.SetLayerMask(collisionMask);
+            filter.useTriggers = false;
+
+            int count = tempCollider.OverlapCollider(filter, hits);
+
+            tempCollider.enabled = false;
+
+            if (count == 0)
+                break;
+
+            spawnPos += Vector3.up * 0.05f;
+            tempFruit.transform.position = spawnPos;
+
+            attempts++;
+        }
+
+        Destroy(tempFruit);
+
+        // Usuwamy stare owoce
         Destroy(fruit1.gameObject);
         Destroy(fruit2.gameObject);
+
+        // Tworzymy w³aœciwy owoc
+        var go = Instantiate(fruitToSpawn, spawnPos, spawnRot);
+        go.transform.SetParent(GameController.Instance.fruitHolder.transform);
+
+        AudioController.Instance.PlayPop();
 
         int value = (int)(fruit1.Type) + 1;
         GameController.Instance.UpdatePoints(value*value);
