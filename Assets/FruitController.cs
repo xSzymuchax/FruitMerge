@@ -1,70 +1,57 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class FruitController : MonoBehaviour
 {
     public MergeController.FruitType Type;
     public bool Merged = false;
-    private bool losingActive = false;
+    public string displayName;
 
-    private void Start()
+    float spawnTime;
+    float timeInDanger;
+
+    void Awake()
     {
-        StartCoroutine(ActivateLosing());
+        spawnTime = Time.time;
     }
 
-    private IEnumerator ActivateLosing()
+    void OnCollisionEnter2D(Collision2D collision)
     {
-        yield return new WaitForSeconds(3f);
-        losingActive = true;
-
-        foreach (Collider2D col in objectsInLine)
-        {
-            CheckLose(col);
-        }
-    }
-
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        Debug.Log("KOLIZJA");
-
-        FruitController mc = collision.gameObject.GetComponent<FruitController>();
-        if (mc == null)
+        if (Merged)
             return;
 
-        if (mc.Type == Type)
-        {
-            Debug.Log($"Collision of: {Type}");
-            MergeController.Instance.AskMerge(this, mc);
-        }
-        else
-        {
-            Debug.Log($"Coliision of difrent.");
-        }
-    }
-
-    private List<Collider2D> objectsInLine = new List<Collider2D>();
-
-    private void OnTriggerEnter2D(Collider2D collision)
-    {
-        objectsInLine.Add(collision);
-
-        CheckLose(collision);
-    }
-
-    private void OnTriggerExit2D(Collider2D collision)
-    {
-        objectsInLine.Remove(collision);
-    }
-
-    private void CheckLose(Collider2D collision)
-    {
-        if (!losingActive)
+        FruitController other = collision.gameObject.GetComponent<FruitController>();
+        if (other == null || other.Type != Type)
             return;
 
-        if (collision.gameObject == GameController.Instance.LosingLine)
-        {
-            GameController.Instance.ResetGame();
-        }
+        if (MergeController.Instance != null)
+            MergeController.Instance.AskMerge(this, other);
+    }
+
+    void OnTriggerStay2D(Collider2D collision)
+    {
+        if (!IsDangerLine(collision))
+            return;
+
+        GameController game = GameController.Instance;
+        if (Time.time < spawnTime + game.gracePeriod)
+            return;
+
+        timeInDanger += Time.deltaTime;
+        if (timeInDanger >= game.dangerHoldTime)
+            game.EndGame();
+    }
+
+    void OnTriggerExit2D(Collider2D collision)
+    {
+        if (IsDangerLine(collision))
+            timeInDanger = 0f;
+    }
+
+    bool IsDangerLine(Collider2D collision)
+    {
+        GameController game = GameController.Instance;
+        return game != null
+            && !game.IsGameOver
+            && collision.gameObject == game.LosingLine;
     }
 }

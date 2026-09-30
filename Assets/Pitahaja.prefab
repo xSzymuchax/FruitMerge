@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 3231604329699906028}
   - component: {fileID: 3406905867584371582}
   - component: {fileID: 8644439848342388539}
+  - component: {fileID: 5801000000000000007}
   m_Layer: 6
   m_Name: Pitahaja
   m_TagString: Untagged
@@ -99,18 +100,18 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 1
-  m_LinearDrag: 0
-  m_AngularDrag: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
+  m_Mass: 6.93
+  m_LinearDrag: 0.08
+  m_AngularDrag: 1.1
+  m_GravityScale: 1.7
+  m_Material: {fileID: 6200000, guid: a1b2c3d4e5f64789a0b1c2d3e4f50617, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 0
@@ -128,6 +129,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Type: 6
   Merged: 0
+  displayName: Pitaja
 --- !u!60 &8644439848342388539
 PolygonCollider2D:
   m_ObjectHideFlags: 0
@@ -135,7 +137,7 @@ PolygonCollider2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6246696337861622674}
-  m_Enabled: 1
+  m_Enabled: 0
   m_Density: 1
   m_Material: {fileID: 0}
   m_IncludeLayers:
@@ -239,3 +241,38 @@ PolygonCollider2D:
       - {x: 0.63, y: -2.03}
       - {x: 0.83, y: -2.01}
   m_UseDelaunayMesh: 0
+--- !u!58 &5801000000000000007
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6246696337861622674}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 6200000, guid: a1b2c3d4e5f64789a0b1c2d3e4f50617, type: 2}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  serializedVersion: 2
+  m_Radius: 2.5088
