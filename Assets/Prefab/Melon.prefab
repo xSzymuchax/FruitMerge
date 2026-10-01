@@ -130,8 +130,8 @@ MonoBehaviour:
   Type: 12
   Merged: 0
   displayName: Melon
-  particleColorMin: {r: 0.51134515, g: 1, b: 0, a: 1}
-  particleColorMax: {r: 0, g: 0.7660377, b: 0.08711796, a: 1}
+  particleColorMin: {r: 1, g: 0.6212363, b: 0, a: 1}
+  particleColorMax: {r: 0.5169811, g: 0.23969287, b: 0, a: 1}
 --- !u!60 &6150000000000000004
 PolygonCollider2D:
   m_ObjectHideFlags: 0
