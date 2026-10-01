@@ -80,35 +80,30 @@ public class AudioController : MonoBehaviour
 
     public void PlayPop(float pitch = 1f)
     {
-        if (!EffectsOn || audioSource == null)
-            return;
-
         AudioClip clip = Random.value <= 0.5f ? pop1 : pop2;
         if (clip == null)
             clip = pop1 != null ? pop1 : pop2;
-        if (clip == null)
-            return;
 
-        audioSource.pitch = Mathf.Clamp(pitch, 0.75f, 1.35f);
-        audioSource.PlayOneShot(clip);
+        PlayEffect(clip, Mathf.Clamp(pitch, 0.75f, 1.35f));
     }
 
     public void PlaySadHorn()
     {
-        if (!EffectsOn || audioSource == null || sadHorn == null)
-            return;
-
-        audioSource.pitch = 1f;
-        audioSource.PlayOneShot(sadHorn);
+        PlayEffect(sadHorn, 1f);
     }
 
     public void PlayNewRecord()
     {
-        if (!EffectsOn || audioSource == null || newRecord == null)
+        PlayEffect(newRecord, 1f);
+    }
+
+    void PlayEffect(AudioClip clip, float pitch)
+    {
+        if (!EffectsOn || audioSource == null || clip == null)
             return;
 
-        audioSource.pitch = 1f;
-        audioSource.PlayOneShot(newRecord);
+        audioSource.pitch = pitch;
+        audioSource.PlayOneShot(clip);
     }
 
     void ApplyMusic()

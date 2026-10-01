@@ -2,7 +2,25 @@ using UnityEngine;
 
 public class FruitController : MonoBehaviour
 {
-    public MergeController.FruitType Type;
+    public enum FruitType
+    {
+        APPLE,
+        ORANGE,
+        LEMON,
+        GRAPEFRUIT,
+        ANANAS,
+        KIWI,
+        PITAHAYA,
+        WATERMELON,
+        COCONUT,
+        PEACH,
+        MANGO,
+        PAPAYA,
+        MELON,
+        PUMPKIN
+    }
+
+    public FruitType Type;
     public bool Merged = false;
     public string displayName;
     public Color particleColorMin = Color.white;

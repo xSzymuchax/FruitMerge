@@ -4,27 +4,12 @@ using UnityEngine;
 
 public class MergeController : MonoBehaviour
 {
-    public enum FruitType
-    {
-        APPLE,
-        ORANGE,
-        LEMON,
-        GRAPEFRUIT,
-        ANANAS,
-        KIWI,
-        PITAHAYA,
-        WATERMELON,
-        COCONUT,
-        PEACH,
-        MANGO,
-        PAPAYA,
-        MELON,
-        PUMPKIN
-    }
+    const string ScorePopupName = "ScorePopup";
+    const string SkibidiName = "Skibidi";
+    const float SkibidiExtraLift = 36f;
 
     public static MergeController Instance;
 
-    public GameObject ApplePrefab;
     public GameObject OrangePrefab;
     public GameObject LemonPrefab;
     public GameObject GrapefruitPrefab;
@@ -54,9 +39,27 @@ public class MergeController : MonoBehaviour
     public float scorePopupHeight = 52f;
     public float scorePopupHorizontal = 64f;
 
+    GameObject[] nextFruits;
+
     void Awake()
     {
         Instance = this;
+        nextFruits = new[]
+        {
+            OrangePrefab,
+            LemonPrefab,
+            GrapefruitPrefab,
+            AnanasPrefab,
+            KiwiPrefab,
+            PitahayaPrefab,
+            WatermelonPrefab,
+            CoconutPrefab,
+            PeachPrefab,
+            MangoPrefab,
+            PapayaPrefab,
+            MelonPrefab,
+            PumpkinPrefab
+        };
     }
 
     public void AskMerge(FruitController fruit1, FruitController fruit2)
@@ -70,7 +73,7 @@ public class MergeController : MonoBehaviour
         if (GameController.Instance != null && GameController.Instance.IsGameOver)
             return;
 
-        if (fruit1.Type == FruitType.PUMPKIN)
+        if (fruit1.Type == FruitController.FruitType.PUMPKIN)
             return;
 
         GameObject fruitToSpawn = FindFruitToSpawn(fruit1.Type);
@@ -118,7 +121,7 @@ public class MergeController : MonoBehaviour
 
         PlayMergeParticles(spawnPos, spawned);
         ShowScorePopup(spawnPos, baseScore, combo, spawned);
-        if (fruit1.Type == FruitType.ORANGE)
+        if (fruit1.Type == FruitController.FruitType.ORANGE)
             ShowSkibidi(spawnPos);
 
         Destroy(fruit1.gameObject);
@@ -145,82 +148,71 @@ public class MergeController : MonoBehaviour
 
     void ShowScorePopup(Vector3 worldPosition, int amount, int combo, FruitController fruit)
     {
-        if (amount == 0 || scorePopup == null || Camera.main == null)
-            return;
-
-        Canvas canvas = null;
-        if (GameController.Instance != null && GameController.Instance.pointsCounter != null)
-            canvas = GameController.Instance.pointsCounter.canvas;
-        if (canvas == null)
+        if (amount == 0 || scorePopup == null || HudCanvas() == null || Camera.main == null)
             return;
 
         Color color = Color.white;
         if (fruit != null)
             color = Color.Lerp(fruit.particleColorMin, fruit.particleColorMax, Random.value);
 
-        TextMeshProUGUI text = Instantiate(scorePopup, canvas.transform);
-        text.name = "ScorePopup";
-        text.transform.SetAsLastSibling();
+        var offset = new Vector2(Random.Range(-scorePopupHorizontal, scorePopupHorizontal), scorePopupHeight);
+        if (!TryPlacePopup(scorePopup, worldPosition, offset, out TextMeshProUGUI text))
+            return;
+
+        text.name = ScorePopupName;
         text.text = "+" + amount + " X" + combo;
         text.color = color;
-
-        var rect = text.rectTransform;
-        var canvasRect = canvas.transform as RectTransform;
-        Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-        Vector3 screen = Camera.main.WorldToScreenPoint(worldPosition);
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, eventCamera, out Vector2 local))
-        {
-            local.x += Random.Range(-scorePopupHorizontal, scorePopupHorizontal);
-            local.y += scorePopupHeight;
-            rect.anchoredPosition = local;
-        }
-
-        StartCoroutine(FloatScorePopup(text, rect.anchoredPosition, color));
+        StartCoroutine(FloatScorePopup(text, text.rectTransform.anchoredPosition, color));
     }
 
     void ShowSkibidi(Vector3 worldPosition)
     {
-        if (skibidiPopup == null || Camera.main == null)
+        var offset = new Vector2(0f, scorePopupHeight + SkibidiExtraLift);
+        if (!TryPlacePopup(skibidiPopup, worldPosition, offset, out TextMeshProUGUI text))
             return;
 
-        Canvas canvas = null;
-        if (GameController.Instance != null && GameController.Instance.pointsCounter != null)
-            canvas = GameController.Instance.pointsCounter.canvas;
-        if (canvas == null)
-            return;
+        text.name = SkibidiName;
+        StartCoroutine(FloatScorePopup(text, text.rectTransform.anchoredPosition, text.color));
+    }
 
-        TextMeshProUGUI text = Instantiate(skibidiPopup, canvas.transform);
-        text.name = "Skibidi";
+    bool TryPlacePopup(TextMeshProUGUI prefab, Vector3 worldPosition, Vector2 offset, out TextMeshProUGUI text)
+    {
+        text = null;
+        Canvas canvas = HudCanvas();
+        if (prefab == null || canvas == null || Camera.main == null)
+            return false;
+
+        text = Instantiate(prefab, canvas.transform);
         text.transform.SetAsLastSibling();
 
-        var rect = text.rectTransform;
+        RectTransform rect = text.rectTransform;
         var canvasRect = canvas.transform as RectTransform;
         Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
         Vector3 screen = Camera.main.WorldToScreenPoint(worldPosition);
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, eventCamera, out Vector2 local))
         {
-            local.y += scorePopupHeight + 36f;
+            local += offset;
             rect.anchoredPosition = local;
         }
 
-        StartCoroutine(FloatScorePopup(text, rect.anchoredPosition, text.color));
+        return true;
+    }
+
+    static Canvas HudCanvas()
+    {
+        if (GameController.Instance == null || GameController.Instance.pointsCounter == null)
+            return null;
+
+        return GameController.Instance.pointsCounter.canvas;
     }
 
     public void ClearScorePopups()
     {
-        if (GameController.Instance == null || GameController.Instance.pointsCounter == null)
+        if (GameController.Instance == null)
             return;
 
-        Canvas canvas = GameController.Instance.pointsCounter.canvas;
-        if (canvas == null)
-            return;
-
-        for (int i = canvas.transform.childCount - 1; i >= 0; i--)
-        {
-            Transform child = canvas.transform.GetChild(i);
-            if (child.name == "ScorePopup" || child.name == "Skibidi")
-                Destroy(child.gameObject);
-        }
+        GameController.Instance.DestroyHudChildren(ScorePopupName);
+        GameController.Instance.DestroyHudChildren(SkibidiName);
     }
 
     IEnumerator FloatScorePopup(TextMeshProUGUI text, Vector2 start, Color color)
@@ -351,38 +343,12 @@ public class MergeController : MonoBehaviour
         }
     }
 
-    GameObject FindFruitToSpawn(FruitType fruitType)
+    GameObject FindFruitToSpawn(FruitController.FruitType fruitType)
     {
-        switch (fruitType)
-        {
-            case FruitType.APPLE:
-                return OrangePrefab;
-            case FruitType.ORANGE:
-                return LemonPrefab;
-            case FruitType.LEMON:
-                return GrapefruitPrefab;
-            case FruitType.GRAPEFRUIT:
-                return AnanasPrefab;
-            case FruitType.ANANAS:
-                return KiwiPrefab;
-            case FruitType.KIWI:
-                return PitahayaPrefab;
-            case FruitType.PITAHAYA:
-                return WatermelonPrefab;
-            case FruitType.WATERMELON:
-                return CoconutPrefab;
-            case FruitType.COCONUT:
-                return PeachPrefab;
-            case FruitType.PEACH:
-                return MangoPrefab;
-            case FruitType.MANGO:
-                return PapayaPrefab;
-            case FruitType.PAPAYA:
-                return MelonPrefab;
-            case FruitType.MELON:
-                return PumpkinPrefab;
-            default:
-                return null;
-        }
+        int index = (int)fruitType;
+        if (nextFruits == null || index < 0 || index >= nextFruits.Length)
+            return null;
+
+        return nextFruits[index];
     }
 }

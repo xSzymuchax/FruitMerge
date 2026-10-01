@@ -1,10 +1,10 @@
 # FruitMerge game!
 
-I made this game for my sister, it's not the best optimised, but... thats the point :D
+Fruit merging game! It's goal is... to merge fruits!
 
-There is build apk file, but for some reason, on some devices it's not working properly :/
+There are 14 possible fruits, so go and MERGE THEM ALL!
 
-Enjoy!
+The game got some sounds, music and effects, so it's not the most boring one you can find (i hope :P).
 
 ![alt text](photo1.png)
 

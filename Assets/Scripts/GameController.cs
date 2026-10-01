@@ -28,6 +28,8 @@ public class GameController : MonoBehaviour
     public float newRecordShrinkTime = 0.42f;
     public float newRecordPeakScale = 1.15f;
 
+    const string NewRecordName = "NewRecord";
+
     public bool IsGameOver { get; private set; }
     public bool IsPaused { get; private set; }
     public int Combo { get; private set; }
@@ -176,7 +178,7 @@ public class GameController : MonoBehaviour
             return;
 
         TextMeshProUGUI text = Instantiate(newRecordPopup, canvas.transform);
-        text.name = "NewRecord";
+        text.name = NewRecordName;
         text.transform.SetAsLastSibling();
 
         RectTransform rect = text.rectTransform;
@@ -235,18 +237,23 @@ public class GameController : MonoBehaviour
             Destroy(rect.gameObject);
     }
 
-    void ClearNewRecordPopup()
+    public void DestroyHudChildren(string objectName)
     {
-        if (pointsCounter == null || pointsCounter.canvas == null)
+        if (pointsCounter == null || pointsCounter.canvas == null || string.IsNullOrEmpty(objectName))
             return;
 
         Transform canvas = pointsCounter.canvas.transform;
         for (int i = canvas.childCount - 1; i >= 0; i--)
         {
             Transform child = canvas.GetChild(i);
-            if (child.name == "NewRecord")
+            if (child.name == objectName)
                 Destroy(child.gameObject);
         }
+    }
+
+    void ClearNewRecordPopup()
+    {
+        DestroyHudChildren(NewRecordName);
     }
 
     public void EndGame()
@@ -287,6 +294,8 @@ public class GameController : MonoBehaviour
         Combo = 1;
         if (MergeController.Instance != null)
             MergeController.Instance.ClearScorePopups();
+        if (SpawnerController.Instance != null)
+            SpawnerController.Instance.ResetRound();
         ClearNewRecordPopup();
         bestAtRunStart = best;
         SetPaused(false);

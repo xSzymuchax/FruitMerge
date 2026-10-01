@@ -5,6 +5,8 @@ using UnityEngine.EventSystems;
 
 public class SpawnerController : MonoBehaviour
 {
+    public static SpawnerController Instance;
+
     public TextMeshProUGUI nextFruitText;
     public GameObject ApplePrefab;
     public GameObject OrangePrefab;
@@ -29,6 +31,7 @@ public class SpawnerController : MonoBehaviour
 
     void Awake()
     {
+        Instance = this;
         fruitMask = 1 << LayerMask.NameToLayer("Fruits");
     }
 
@@ -209,6 +212,12 @@ public class SpawnerController : MonoBehaviour
             return EventSystem.current.IsPointerOverGameObject(pointerId);
 
         return EventSystem.current.IsPointerOverGameObject();
+    }
+
+    public void ResetRound()
+    {
+        StopAllCoroutines();
+        onCooldown = false;
     }
 
     IEnumerator SpawnCooldown()
