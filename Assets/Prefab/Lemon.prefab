@@ -131,6 +131,8 @@ MonoBehaviour:
   Type: 2
   Merged: 0
   displayName: Cytryna
+  particleColorMin: {r: 1, g: 0.9650948, b: 0, a: 1}
+  particleColorMax: {r: 0.7584905, g: 0.6665014, b: 0, a: 1}
 --- !u!60 &556345820404695164
 PolygonCollider2D:
   m_ObjectHideFlags: 0

@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 9
   Merged: 0
   displayName: Brzoskwinia
+  particleColorMin: {r: 1, g: 0.58679235, b: 0.8529056, a: 1}
+  particleColorMax: {r: 1, g: 0.61698115, b: 0.61698115, a: 1}
 --- !u!60 &6150000000000000001
 PolygonCollider2D:
   m_ObjectHideFlags: 0

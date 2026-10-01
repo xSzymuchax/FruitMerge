@@ -5,6 +5,8 @@ public class FruitController : MonoBehaviour
     public MergeController.FruitType Type;
     public bool Merged = false;
     public string displayName;
+    public Color particleColorMin = Color.white;
+    public Color particleColorMax = Color.white;
 
     float spawnTime;
     float timeInDanger;

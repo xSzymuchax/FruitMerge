@@ -1116,6 +1116,7 @@ MonoBehaviour:
   growStartScale: 0.78
   popPitch: 1.16
   popPitchStep: 0.035
+  mergeParticles: {fileID: 6499279185355350800, guid: 8f9df1a2f8583594ab50d65103584c4a, type: 3}
 --- !u!4 &583046416
 Transform:
   m_ObjectHideFlags: 0

@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 4
   Merged: 0
   displayName: Ananas
+  particleColorMin: {r: 1, g: 0.4810322, b: 0, a: 1}
+  particleColorMax: {r: 0.043553885, g: 0.79622644, b: 0, a: 1}
 --- !u!60 &462264776140942348
 PolygonCollider2D:
   m_ObjectHideFlags: 0

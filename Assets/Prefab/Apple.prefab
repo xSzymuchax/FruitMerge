@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 0
   Merged: 0
   displayName: "Jab\u0142ko"
+  particleColorMin: {r: 1, g: 0.0056602955, b: 0.0056602955, a: 1}
+  particleColorMax: {r: 1, g: 0.50377357, b: 0.50377357, a: 1}
 --- !u!60 &1004003361634595160
 PolygonCollider2D:
   m_ObjectHideFlags: 0

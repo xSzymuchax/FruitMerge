@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 11
   Merged: 0
   displayName: Papaja
+  particleColorMin: {r: 1, g: 0.54321367, b: 0.3830188, a: 1}
+  particleColorMax: {r: 0.9954999, g: 1, b: 0.33773577, a: 1}
 --- !u!60 &6150000000000000003
 PolygonCollider2D:
   m_ObjectHideFlags: 0

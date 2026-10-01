@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 10
   Merged: 0
   displayName: Mango
+  particleColorMin: {r: 1, g: 0.71062976, b: 0, a: 1}
+  particleColorMax: {r: 1, g: 0.41320753, b: 0.41320753, a: 1}
 --- !u!60 &6150000000000000002
 PolygonCollider2D:
   m_ObjectHideFlags: 0

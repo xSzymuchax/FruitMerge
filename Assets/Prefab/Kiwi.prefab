@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 5
   Merged: 0
   displayName: Kiwi
+  particleColorMin: {r: 0.72179437, g: 1, b: 0.33773577, a: 1}
+  particleColorMax: {r: 0.14203359, g: 0.8490566, b: 0, a: 1}
 --- !u!60 &1379242913749320821
 PolygonCollider2D:
   m_ObjectHideFlags: 0

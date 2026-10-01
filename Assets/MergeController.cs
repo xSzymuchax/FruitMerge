@@ -45,6 +45,7 @@ public class MergeController : MonoBehaviour
     public float growStartScale = 0.78f;
     public float popPitch = 1.16f;
     public float popPitchStep = 0.035f;
+    public ParticleSystem mergeParticles;
 
     void Awake()
     {
@@ -101,11 +102,28 @@ public class MergeController : MonoBehaviour
         if (AudioController.Instance != null)
             AudioController.Instance.PlayPop(popPitch - tier * popPitchStep);
 
+        PlayMergeParticles(spawnPos, go.GetComponent<FruitController>());
+
         Destroy(fruit1.gameObject);
         Destroy(fruit2.gameObject);
 
         float duration = growTime + tier * growTimePerTier;
         StartCoroutine(SettleInPlace(go, rb, fullScale, duration));
+    }
+
+    void PlayMergeParticles(Vector3 position, FruitController fruit)
+    {
+        if (mergeParticles == null)
+            return;
+
+        ParticleSystem effect = Instantiate(mergeParticles, position, Quaternion.identity);
+        effect.transform.position = new Vector3(position.x, position.y, -0.1f);
+        ParticleSystem.MainModule main = effect.main;
+        main.loop = false;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+        if (fruit != null)
+            main.startColor = new ParticleSystem.MinMaxGradient(fruit.particleColorMin, fruit.particleColorMax);
+        effect.Play();
     }
 
     static void Suppress(FruitController fruit)

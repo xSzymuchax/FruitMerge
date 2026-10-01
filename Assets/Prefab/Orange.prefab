@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 1
   Merged: 0
   displayName: "Pomara\u0144cza"
+  particleColorMin: {r: 1, g: 0.47419202, b: 0, a: 1}
+  particleColorMax: {r: 1, g: 0.73663133, b: 0.47358483, a: 1}
 --- !u!60 &3048402360262291851
 PolygonCollider2D:
   m_ObjectHideFlags: 0

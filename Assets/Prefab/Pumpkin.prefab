@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 13
   Merged: 0
   displayName: Dynia
+  particleColorMin: {r: 1, g: 0.5714479, b: 0, a: 1}
+  particleColorMax: {r: 0.6679245, g: 0.37035057, b: 0, a: 1}
 --- !u!60 &6150000000000000005
 PolygonCollider2D:
   m_ObjectHideFlags: 0

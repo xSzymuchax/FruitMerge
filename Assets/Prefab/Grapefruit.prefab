@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 3
   Merged: 0
   displayName: Grejpfrut
+  particleColorMin: {r: 0.97735846, g: 0.56112397, b: 0, a: 1}
+  particleColorMax: {r: 0.7509433, g: 0.2913529, b: 0, a: 1}
 --- !u!60 &4914073370178972785
 PolygonCollider2D:
   m_ObjectHideFlags: 0

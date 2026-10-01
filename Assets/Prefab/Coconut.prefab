@@ -130,6 +130,8 @@ MonoBehaviour:
   Type: 8
   Merged: 0
   displayName: Kokos
+  particleColorMin: {r: 1, g: 1, b: 1, a: 1}
+  particleColorMax: {r: 0.2830189, g: 0.020825887, b: 0.020825887, a: 1}
 --- !u!60 &9223244844166573260
 PolygonCollider2D:
   m_ObjectHideFlags: 0
