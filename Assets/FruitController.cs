@@ -16,6 +16,19 @@ public class FruitController : MonoBehaviour
         spawnTime = Time.time;
     }
 
+    public void ApplyRandomLook()
+    {
+        float angle = Random.Range(0f, 360f);
+        transform.rotation = Quaternion.Euler(0f, 0f, angle);
+        Rigidbody2D body = GetComponent<Rigidbody2D>();
+        if (body != null)
+            body.rotation = angle;
+
+        SpriteRenderer sprite = GetComponent<SpriteRenderer>();
+        if (sprite != null)
+            sprite.flipX = Random.value < 0.5f;
+    }
+
     void OnCollisionEnter2D(Collision2D collision)
     {
         if (Merged)

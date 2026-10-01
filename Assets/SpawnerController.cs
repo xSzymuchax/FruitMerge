@@ -168,9 +168,15 @@ public class SpawnerController : MonoBehaviour
 
         StartCoroutine(SpawnCooldown());
 
-        var go = Instantiate(pickedFruit, spawnPoint, Quaternion.Euler(0f, 0f, Random.Range(-25f, 25f)));
+        var go = Instantiate(pickedFruit, spawnPoint, Quaternion.identity);
+        if (GameController.Instance != null)
+            GameController.Instance.ResetCombo();
         if (GameController.Instance != null && GameController.Instance.fruitHolder != null)
             go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
+
+        FruitController fruit = go.GetComponent<FruitController>();
+        if (fruit != null)
+            fruit.ApplyRandomLook();
 
         Rigidbody2D rb = go.GetComponent<Rigidbody2D>();
         if (rb != null)

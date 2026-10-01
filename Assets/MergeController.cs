@@ -48,6 +48,7 @@ public class MergeController : MonoBehaviour
     public float popPitchStep = 0.035f;
     public ParticleSystem mergeParticles;
     public TextMeshProUGUI scorePopup;
+    public TextMeshProUGUI skibidiPopup;
     public float scorePopupRise = 72f;
     public float scorePopupDuration = 2.1f;
     public float scorePopupHeight = 52f;
@@ -85,9 +86,13 @@ public class MergeController : MonoBehaviour
         Suppress(fruit1);
         Suppress(fruit2);
 
-        var go = Instantiate(fruitToSpawn, spawnPos, Quaternion.Euler(0f, 0f, Random.Range(-18f, 18f)));
+        var go = Instantiate(fruitToSpawn, spawnPos, Quaternion.identity);
         if (GameController.Instance != null && GameController.Instance.fruitHolder != null)
             go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
+
+        FruitController spawned = go.GetComponent<FruitController>();
+        if (spawned != null)
+            spawned.ApplyRandomLook();
 
         Rigidbody2D rb = go.GetComponent<Rigidbody2D>();
         Vector3 fullScale = go.transform.localScale;
@@ -102,16 +107,19 @@ public class MergeController : MonoBehaviour
         go.transform.localScale = fullScale * growStartScale;
 
         int tier = (int)fruit1.Type + 1;
-        int score = tier * tier;
+        int baseScore = tier * tier;
+        int combo = GameController.Instance != null ? GameController.Instance.TakeMergeCombo() : 1;
+        int score = baseScore * combo;
         if (GameController.Instance != null)
             GameController.Instance.UpdatePoints(score);
 
         if (AudioController.Instance != null)
             AudioController.Instance.PlayPop(popPitch - tier * popPitchStep);
 
-        FruitController spawned = go.GetComponent<FruitController>();
         PlayMergeParticles(spawnPos, spawned);
-        ShowScorePopup(spawnPos, score, spawned);
+        ShowScorePopup(spawnPos, baseScore, combo, spawned);
+        if (fruit1.Type == FruitType.ORANGE)
+            ShowSkibidi(spawnPos);
 
         Destroy(fruit1.gameObject);
         Destroy(fruit2.gameObject);
@@ -135,7 +143,7 @@ public class MergeController : MonoBehaviour
         effect.Play();
     }
 
-    void ShowScorePopup(Vector3 worldPosition, int amount, FruitController fruit)
+    void ShowScorePopup(Vector3 worldPosition, int amount, int combo, FruitController fruit)
     {
         if (amount == 0 || scorePopup == null || Camera.main == null)
             return;
@@ -153,7 +161,7 @@ public class MergeController : MonoBehaviour
         TextMeshProUGUI text = Instantiate(scorePopup, canvas.transform);
         text.name = "ScorePopup";
         text.transform.SetAsLastSibling();
-        text.text = "+" + amount;
+        text.text = "+" + amount + " X" + combo;
         text.color = color;
 
         var rect = text.rectTransform;
@@ -170,6 +178,34 @@ public class MergeController : MonoBehaviour
         StartCoroutine(FloatScorePopup(text, rect.anchoredPosition, color));
     }
 
+    void ShowSkibidi(Vector3 worldPosition)
+    {
+        if (skibidiPopup == null || Camera.main == null)
+            return;
+
+        Canvas canvas = null;
+        if (GameController.Instance != null && GameController.Instance.pointsCounter != null)
+            canvas = GameController.Instance.pointsCounter.canvas;
+        if (canvas == null)
+            return;
+
+        TextMeshProUGUI text = Instantiate(skibidiPopup, canvas.transform);
+        text.name = "Skibidi";
+        text.transform.SetAsLastSibling();
+
+        var rect = text.rectTransform;
+        var canvasRect = canvas.transform as RectTransform;
+        Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        Vector3 screen = Camera.main.WorldToScreenPoint(worldPosition);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, eventCamera, out Vector2 local))
+        {
+            local.y += scorePopupHeight + 36f;
+            rect.anchoredPosition = local;
+        }
+
+        StartCoroutine(FloatScorePopup(text, rect.anchoredPosition, text.color));
+    }
+
     public void ClearScorePopups()
     {
         if (GameController.Instance == null || GameController.Instance.pointsCounter == null)
@@ -182,7 +218,7 @@ public class MergeController : MonoBehaviour
         for (int i = canvas.transform.childCount - 1; i >= 0; i--)
         {
             Transform child = canvas.transform.GetChild(i);
-            if (child.name == "ScorePopup")
+            if (child.name == "ScorePopup" || child.name == "Skibidi")
                 Destroy(child.gameObject);
         }
     }

@@ -30,6 +30,7 @@ public class GameController : MonoBehaviour
 
     public bool IsGameOver { get; private set; }
     public bool IsPaused { get; private set; }
+    public int Combo { get; private set; }
 
     int best;
     int bestAtRunStart;
@@ -42,6 +43,7 @@ public class GameController : MonoBehaviour
         IsPaused = false;
         best = PlayerPrefs.GetInt(bestScoreKey, 0);
         bestAtRunStart = best;
+        Combo = 1;
         if (pauseCanvas != null)
             pauseCanvas.SetActive(false);
         RefreshScore();
@@ -147,6 +149,18 @@ public class GameController : MonoBehaviour
         }
 
         RefreshScore();
+    }
+
+    public void ResetCombo()
+    {
+        Combo = 1;
+    }
+
+    public int TakeMergeCombo()
+    {
+        int combo = Combo < 1 ? 1 : Combo;
+        Combo = combo + 1;
+        return combo;
     }
 
     void ShowNewRecord()
@@ -270,6 +284,7 @@ public class GameController : MonoBehaviour
         points = 0;
         IsGameOver = false;
         recordAnnounced = false;
+        Combo = 1;
         if (MergeController.Instance != null)
             MergeController.Instance.ClearScorePopups();
         ClearNewRecordPopup();

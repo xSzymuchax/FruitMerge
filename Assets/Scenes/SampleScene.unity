@@ -1123,6 +1123,7 @@ MonoBehaviour:
   popPitchStep: 0.035
   mergeParticles: {fileID: 6499279185355350800, guid: 8f9df1a2f8583594ab50d65103584c4a, type: 3}
   scorePopup: {fileID: 6300000000000000004, guid: c3a91e70b4d64f2a8e5b17c0d6f84921, type: 3}
+  skibidiPopup: {fileID: 6500000000000000004, guid: f6d24b03e7a9725d1b8e40f3a92b7c54, type: 3}
   scorePopupRise: 72
   scorePopupDuration: 2.1
   scorePopupHeight: 52
