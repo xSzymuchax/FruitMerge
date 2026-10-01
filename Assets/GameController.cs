@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -21,12 +22,18 @@ public class GameController : MonoBehaviour
     public string newRecordLine = "\nNowy rekord!";
     public float gracePeriod = 0.55f;
     public float dangerHoldTime = 1.1f;
+    public TextMeshProUGUI newRecordPopup;
+    public float newRecordGrowTime = 0.16f;
+    public float newRecordHoldTime = 0.4f;
+    public float newRecordShrinkTime = 0.42f;
+    public float newRecordPeakScale = 1.15f;
 
     public bool IsGameOver { get; private set; }
     public bool IsPaused { get; private set; }
 
     int best;
     int bestAtRunStart;
+    bool recordAnnounced;
 
     void Awake()
     {
@@ -111,7 +118,11 @@ public class GameController : MonoBehaviour
         if (pauseCanvas != null)
         {
             if (paused)
+            {
                 EnsureOverlay(pauseCanvas);
+                if (AudioController.Instance != null)
+                    AudioController.Instance.RefreshLabels();
+            }
             pauseCanvas.SetActive(paused);
         }
     }
@@ -129,7 +140,99 @@ public class GameController : MonoBehaviour
             PlayerPrefs.Save();
         }
 
+        if (!recordAnnounced && bestAtRunStart > 0 && points > bestAtRunStart)
+        {
+            recordAnnounced = true;
+            ShowNewRecord();
+        }
+
         RefreshScore();
+    }
+
+    void ShowNewRecord()
+    {
+        if (AudioController.Instance != null)
+            AudioController.Instance.PlayNewRecord();
+
+        if (newRecordPopup == null || pointsCounter == null)
+            return;
+
+        Canvas canvas = pointsCounter.canvas;
+        if (canvas == null)
+            return;
+
+        TextMeshProUGUI text = Instantiate(newRecordPopup, canvas.transform);
+        text.name = "NewRecord";
+        text.transform.SetAsLastSibling();
+
+        RectTransform rect = text.rectTransform;
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.localScale = new Vector3(0.08f, 0.08f, 1f);
+        StartCoroutine(AnimateNewRecord(rect));
+    }
+
+    IEnumerator AnimateNewRecord(RectTransform rect)
+    {
+        float grow = newRecordGrowTime < 0.01f ? 0.01f : newRecordGrowTime;
+        float shrink = newRecordShrinkTime < 0.01f ? 0.01f : newRecordShrinkTime;
+        float peak = newRecordPeakScale;
+        const float startScale = 0.08f;
+
+        float t = 0f;
+        while (t < grow)
+        {
+            if (rect == null)
+                yield break;
+
+            t += Time.deltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / grow));
+            float scale = Mathf.Lerp(startScale, peak, k);
+            rect.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < newRecordHoldTime)
+        {
+            if (rect == null)
+                yield break;
+
+            t += Time.deltaTime;
+            rect.localScale = new Vector3(peak, peak, 1f);
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < shrink)
+        {
+            if (rect == null)
+                yield break;
+
+            t += Time.deltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / shrink));
+            float scale = Mathf.Lerp(peak, 0f, k);
+            rect.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+
+        if (rect != null)
+            Destroy(rect.gameObject);
+    }
+
+    void ClearNewRecordPopup()
+    {
+        if (pointsCounter == null || pointsCounter.canvas == null)
+            return;
+
+        Transform canvas = pointsCounter.canvas.transform;
+        for (int i = canvas.childCount - 1; i >= 0; i--)
+        {
+            Transform child = canvas.GetChild(i);
+            if (child.name == "NewRecord")
+                Destroy(child.gameObject);
+        }
     }
 
     public void EndGame()
@@ -166,14 +269,25 @@ public class GameController : MonoBehaviour
 
         points = 0;
         IsGameOver = false;
+        recordAnnounced = false;
         if (MergeController.Instance != null)
             MergeController.Instance.ClearScorePopups();
+        ClearNewRecordPopup();
         bestAtRunStart = best;
         SetPaused(false);
 
         if (finalScoreCanvas != null)
             finalScoreCanvas.SetActive(false);
 
+        RefreshScore();
+    }
+
+    public void ResetBestScore()
+    {
+        best = 0;
+        bestAtRunStart = points;
+        PlayerPrefs.SetInt(bestScoreKey, 0);
+        PlayerPrefs.Save();
         RefreshScore();
     }
 
