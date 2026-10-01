@@ -166,6 +166,8 @@ public class GameController : MonoBehaviour
 
         points = 0;
         IsGameOver = false;
+        if (MergeController.Instance != null)
+            MergeController.Instance.ClearScorePopups();
         bestAtRunStart = best;
         SetPaused(false);
 

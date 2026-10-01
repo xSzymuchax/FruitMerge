@@ -1117,6 +1117,11 @@ MonoBehaviour:
   popPitch: 1.16
   popPitchStep: 0.035
   mergeParticles: {fileID: 6499279185355350800, guid: 8f9df1a2f8583594ab50d65103584c4a, type: 3}
+  scorePopup: {fileID: 6300000000000000004, guid: c3a91e70b4d64f2a8e5b17c0d6f84921, type: 3}
+  scorePopupRise: 72
+  scorePopupDuration: 2.1
+  scorePopupHeight: 52
+  scorePopupHorizontal: 64
 --- !u!4 &583046416
 Transform:
   m_ObjectHideFlags: 0
@@ -5754,6 +5759,9 @@ PrefabInstance:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 1357138877}
+  - {fileID: 583046416}
+  - {fileID: 105810145}
   - {fileID: 519420032}
   - {fileID: 532405139}
   - {fileID: 236504216}
@@ -5762,12 +5770,9 @@ SceneRoots:
   - {fileID: 1163330560}
   - {fileID: 303504389}
   - {fileID: 2096548080}
-  - {fileID: 583046416}
-  - {fileID: 1357138877}
   - {fileID: 1202365126}
   - {fileID: 442992062}
   - {fileID: 1437200399}
-  - {fileID: 105810145}
   - {fileID: 524670083}
   - {fileID: 2078423705}
   - {fileID: 2066667343}

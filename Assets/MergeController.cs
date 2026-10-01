@@ -1,4 +1,5 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 
 public class MergeController : MonoBehaviour
@@ -46,6 +47,11 @@ public class MergeController : MonoBehaviour
     public float popPitch = 1.16f;
     public float popPitchStep = 0.035f;
     public ParticleSystem mergeParticles;
+    public TextMeshProUGUI scorePopup;
+    public float scorePopupRise = 72f;
+    public float scorePopupDuration = 2.1f;
+    public float scorePopupHeight = 52f;
+    public float scorePopupHorizontal = 64f;
 
     void Awake()
     {
@@ -96,13 +102,16 @@ public class MergeController : MonoBehaviour
         go.transform.localScale = fullScale * growStartScale;
 
         int tier = (int)fruit1.Type + 1;
+        int score = tier * tier;
         if (GameController.Instance != null)
-            GameController.Instance.UpdatePoints(tier * tier);
+            GameController.Instance.UpdatePoints(score);
 
         if (AudioController.Instance != null)
             AudioController.Instance.PlayPop(popPitch - tier * popPitchStep);
 
-        PlayMergeParticles(spawnPos, go.GetComponent<FruitController>());
+        FruitController spawned = go.GetComponent<FruitController>();
+        PlayMergeParticles(spawnPos, spawned);
+        ShowScorePopup(spawnPos, score, spawned);
 
         Destroy(fruit1.gameObject);
         Destroy(fruit2.gameObject);
@@ -124,6 +133,85 @@ public class MergeController : MonoBehaviour
         if (fruit != null)
             main.startColor = new ParticleSystem.MinMaxGradient(fruit.particleColorMin, fruit.particleColorMax);
         effect.Play();
+    }
+
+    void ShowScorePopup(Vector3 worldPosition, int amount, FruitController fruit)
+    {
+        if (amount == 0 || scorePopup == null || Camera.main == null)
+            return;
+
+        Canvas canvas = null;
+        if (GameController.Instance != null && GameController.Instance.pointsCounter != null)
+            canvas = GameController.Instance.pointsCounter.canvas;
+        if (canvas == null)
+            return;
+
+        Color color = Color.white;
+        if (fruit != null)
+            color = Color.Lerp(fruit.particleColorMin, fruit.particleColorMax, Random.value);
+
+        TextMeshProUGUI text = Instantiate(scorePopup, canvas.transform);
+        text.name = "ScorePopup";
+        text.transform.SetAsLastSibling();
+        text.text = "+" + amount;
+        text.color = color;
+
+        var rect = text.rectTransform;
+        var canvasRect = canvas.transform as RectTransform;
+        Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        Vector3 screen = Camera.main.WorldToScreenPoint(worldPosition);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, eventCamera, out Vector2 local))
+        {
+            local.x += Random.Range(-scorePopupHorizontal, scorePopupHorizontal);
+            local.y += scorePopupHeight;
+            rect.anchoredPosition = local;
+        }
+
+        StartCoroutine(FloatScorePopup(text, rect.anchoredPosition, color));
+    }
+
+    public void ClearScorePopups()
+    {
+        if (GameController.Instance == null || GameController.Instance.pointsCounter == null)
+            return;
+
+        Canvas canvas = GameController.Instance.pointsCounter.canvas;
+        if (canvas == null)
+            return;
+
+        for (int i = canvas.transform.childCount - 1; i >= 0; i--)
+        {
+            Transform child = canvas.transform.GetChild(i);
+            if (child.name == "ScorePopup")
+                Destroy(child.gameObject);
+        }
+    }
+
+    IEnumerator FloatScorePopup(TextMeshProUGUI text, Vector2 start, Color color)
+    {
+        RectTransform rect = text.rectTransform;
+        float duration = scorePopupDuration < 0.05f ? 0.05f : scorePopupDuration;
+        float t = 0f;
+        while (t < duration)
+        {
+            if (text == null)
+                yield break;
+
+            t += Time.deltaTime;
+            float k = Mathf.Clamp01(t / duration);
+            rect.anchoredPosition = start + Vector2.up * (scorePopupRise * Mathf.SmoothStep(0f, 1f, k));
+            float pop = Mathf.SmoothStep(0.72f, 1f, Mathf.Clamp01(k / 0.18f));
+            rect.localScale = new Vector3(pop, pop, 1f);
+
+            float alpha = 1f - Mathf.SmoothStep(0.4f, 1f, k);
+            color.a = alpha;
+            text.color = color;
+            text.outlineColor = new Color(0f, 0f, 0f, alpha);
+            yield return null;
+        }
+
+        if (text != null)
+            Destroy(text.gameObject);
     }
 
     static void Suppress(FruitController fruit)
