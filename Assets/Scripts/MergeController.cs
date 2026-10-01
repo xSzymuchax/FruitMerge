@@ -94,11 +94,9 @@ public class MergeController : MonoBehaviour
         if (GameController.Instance != null && GameController.Instance.IsGameOver)
             return;
 
-        if (fruit1.Type == FruitController.FruitType.PUMPKIN)
-            return;
-
-        GameObject fruitToSpawn = FindFruitToSpawn(fruit1.Type);
-        if (fruitToSpawn == null)
+        bool lastTier = fruit1.Type == FruitController.FruitType.PUMPKIN;
+        GameObject fruitToSpawn = lastTier ? null : FindFruitToSpawn(fruit1.Type);
+        if (!lastTier && fruitToSpawn == null)
             return;
 
         fruit1.Merged = true;
@@ -110,25 +108,32 @@ public class MergeController : MonoBehaviour
         Suppress(fruit1);
         Suppress(fruit2);
 
-        var go = Instantiate(fruitToSpawn, spawnPos, Quaternion.identity);
-        if (GameController.Instance != null && GameController.Instance.fruitHolder != null)
-            go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
-
-        FruitController spawned = go.GetComponent<FruitController>();
-        if (spawned != null)
-            spawned.ApplyRandomLook();
-
-        Rigidbody2D rb = go.GetComponent<Rigidbody2D>();
-        Vector3 fullScale = go.transform.localScale;
-        if (rb != null)
+        GameObject go = null;
+        FruitController spawned = null;
+        Rigidbody2D rb = null;
+        Vector3 fullScale = Vector3.one;
+        if (fruitToSpawn != null)
         {
-            rb.bodyType = RigidbodyType2D.Kinematic;
-            rb.velocity = Vector2.zero;
-            rb.angularVelocity = 0f;
-            rb.position = spawnPos;
-        }
+            go = Instantiate(fruitToSpawn, spawnPos, Quaternion.identity);
+            if (GameController.Instance != null && GameController.Instance.fruitHolder != null)
+                go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
 
-        go.transform.localScale = fullScale * growStartScale;
+            spawned = go.GetComponent<FruitController>();
+            if (spawned != null)
+                spawned.ApplyRandomLook();
+
+            rb = go.GetComponent<Rigidbody2D>();
+            fullScale = go.transform.localScale;
+            if (rb != null)
+            {
+                rb.bodyType = RigidbodyType2D.Kinematic;
+                rb.velocity = Vector2.zero;
+                rb.angularVelocity = 0f;
+                rb.position = spawnPos;
+            }
+
+            go.transform.localScale = fullScale * growStartScale;
+        }
 
         int tier = (int)fruit1.Type + 1;
         int baseScore = tier * tier;
@@ -140,15 +145,19 @@ public class MergeController : MonoBehaviour
         if (AudioController.Instance != null)
             AudioController.Instance.PlayPop(popPitch - tier * popPitchStep);
 
-        PlayMergeParticles(spawnPos, spawned);
-        ShowScorePopup(spawnPos, baseScore, combo, spawned);
-        ShowSkibidi(spawnPos, spawned);
+        FruitController colorSource = spawned != null ? spawned : fruit1;
+        PlayMergeParticles(spawnPos, colorSource);
+        ShowScorePopup(spawnPos, baseScore, combo, colorSource);
+        ShowSkibidi(spawnPos, colorSource);
 
         Destroy(fruit1.gameObject);
         Destroy(fruit2.gameObject);
 
-        float duration = growTime + tier * growTimePerTier;
-        StartCoroutine(SettleInPlace(go, rb, fullScale, duration));
+        if (go != null)
+        {
+            float duration = growTime + tier * growTimePerTier;
+            StartCoroutine(SettleInPlace(go, rb, fullScale, duration));
+        }
     }
 
     void PlayMergeParticles(Vector3 position, FruitController fruit)
