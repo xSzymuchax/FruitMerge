@@ -7,6 +7,27 @@ public class MergeController : MonoBehaviour
     const string ScorePopupName = "ScorePopup";
     const string SkibidiName = "Skibidi";
     const float SkibidiExtraLift = 36f;
+    const float SkibidiChance = 0.2f;
+    const float SkibidiMaxAngle = 30f;
+
+    static readonly string[] SkibidiLines =
+    {
+        "SKIBIDI",
+        "WOW",
+        "KREJZI SZIT",
+        "NIESAMOWIAŚCIE",
+        "RZĄDZISZ",
+        "SIGIEMKA",
+        "GOAT",
+        "GOACIK",
+        "YEEEEAA",
+        "WOHOOO",
+        "DAJESZ",
+        "LECISZ PO WIĘCEJ",
+        "NAJLEPSZOŚĆ",
+        "MANGOMUSZTARDA",
+        "MASZ TO"
+    };
 
     public static MergeController Instance;
 
@@ -121,8 +142,7 @@ public class MergeController : MonoBehaviour
 
         PlayMergeParticles(spawnPos, spawned);
         ShowScorePopup(spawnPos, baseScore, combo, spawned);
-        if (fruit1.Type == FruitController.FruitType.ORANGE)
-            ShowSkibidi(spawnPos);
+        ShowSkibidi(spawnPos, spawned);
 
         Destroy(fruit1.gameObject);
         Destroy(fruit2.gameObject);
@@ -151,9 +171,7 @@ public class MergeController : MonoBehaviour
         if (amount == 0 || scorePopup == null || HudCanvas() == null || Camera.main == null)
             return;
 
-        Color color = Color.white;
-        if (fruit != null)
-            color = Color.Lerp(fruit.particleColorMin, fruit.particleColorMax, Random.value);
+        Color color = FruitPopupColor(fruit);
 
         var offset = new Vector2(Random.Range(-scorePopupHorizontal, scorePopupHorizontal), scorePopupHeight);
         if (!TryPlacePopup(scorePopup, worldPosition, offset, out TextMeshProUGUI text))
@@ -165,14 +183,30 @@ public class MergeController : MonoBehaviour
         StartCoroutine(FloatScorePopup(text, text.rectTransform.anchoredPosition, color));
     }
 
-    void ShowSkibidi(Vector3 worldPosition)
+    void ShowSkibidi(Vector3 worldPosition, FruitController fruit)
     {
+        if (Random.value >= SkibidiChance)
+            return;
+
         var offset = new Vector2(0f, scorePopupHeight + SkibidiExtraLift);
         if (!TryPlacePopup(skibidiPopup, worldPosition, offset, out TextMeshProUGUI text))
             return;
 
+        Color color = FruitPopupColor(fruit);
         text.name = SkibidiName;
-        StartCoroutine(FloatScorePopup(text, text.rectTransform.anchoredPosition, text.color));
+        text.text = SkibidiLines[Random.Range(0, SkibidiLines.Length)];
+        text.color = color;
+        float angle = Random.Range(-SkibidiMaxAngle, SkibidiMaxAngle);
+        text.rectTransform.localEulerAngles = new Vector3(0f, 0f, angle);
+        StartCoroutine(FloatScorePopup(text, text.rectTransform.anchoredPosition, color));
+    }
+
+    static Color FruitPopupColor(FruitController fruit)
+    {
+        if (fruit == null)
+            return Color.white;
+
+        return Color.Lerp(fruit.particleColorMin, fruit.particleColorMax, Random.value);
     }
 
     bool TryPlacePopup(TextMeshProUGUI prefab, Vector3 worldPosition, Vector2 offset, out TextMeshProUGUI text)
