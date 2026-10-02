@@ -120,7 +120,11 @@ public class MergeController : MonoBehaviour
 
             spawned = go.GetComponent<FruitController>();
             if (spawned != null)
+            {
                 spawned.ApplyRandomLook();
+                if (SpawnerController.Instance != null)
+                    SpawnerController.Instance.NoteUnlocked(spawned.Type);
+            }
 
             rb = go.GetComponent<Rigidbody2D>();
             fullScale = go.transform.localScale;
@@ -384,6 +388,15 @@ public class MergeController : MonoBehaviour
 
             Physics2D.SyncTransforms();
         }
+    }
+
+    public GameObject PrefabOf(FruitController.FruitType type)
+    {
+        int index = (int)type - 1;
+        if (nextFruits == null || index < 0 || index >= nextFruits.Length)
+            return null;
+
+        return nextFruits[index];
     }
 
     GameObject FindFruitToSpawn(FruitController.FruitType fruitType)

@@ -9,8 +9,6 @@ public class SpawnerController : MonoBehaviour
 
     public TextMeshProUGUI nextFruitText;
     public GameObject ApplePrefab;
-    public GameObject OrangePrefab;
-    public GameObject LemonPrefab;
     public Transform leftBoundary;
     public Transform rightBoundary;
     public Transform dropPoint;
@@ -21,7 +19,12 @@ public class SpawnerController : MonoBehaviour
     public Color blockedPreviewColor = new Color(1f, 0.42f, 0.38f, 0.55f);
     public float blockedOverlap = 0.82f;
 
-    GameObject[] fruits;
+    const int DropWindow = 9;
+    const int WeightStep = 3;
+    const int PeakIndex = 1;
+
+    GameObject[] chain;
+    int highestUnlocked;
     GameObject pickedFruit;
     GameObject preview;
     SpriteRenderer previewSprite;
@@ -37,8 +40,34 @@ public class SpawnerController : MonoBehaviour
 
     void Start()
     {
-        fruits = new GameObject[] { ApplePrefab, OrangePrefab, LemonPrefab };
+        BuildChain();
+        highestUnlocked = 0;
         SelectNewFruit();
+    }
+
+    void BuildChain()
+    {
+        int count = System.Enum.GetValues(typeof(FruitController.FruitType)).Length;
+        chain = new GameObject[count];
+        chain[0] = ApplePrefab;
+        if (MergeController.Instance == null)
+            return;
+
+        for (int i = 1; i < count; i++)
+            chain[i] = MergeController.Instance.PrefabOf((FruitController.FruitType)i);
+    }
+
+    public void NoteUnlocked(FruitController.FruitType type)
+    {
+        int index = (int)type;
+        if (chain != null && index >= chain.Length)
+            index = chain.Length - 1;
+        if (index <= highestUnlocked)
+            return;
+
+        highestUnlocked = index;
+        if (!IsInPool(pickedFruit))
+            SelectNewFruit();
     }
 
     void Update()
@@ -83,8 +112,7 @@ public class SpawnerController : MonoBehaviour
 
     void SelectNewFruit()
     {
-        int pick = Random.Range(0, fruits.Length);
-        pickedFruit = fruits[pick];
+        pickedFruit = PickFruit();
         CreatePreview();
 
         if (pickedFruit == null || nextFruitText == null)
@@ -191,6 +219,78 @@ public class SpawnerController : MonoBehaviour
         SelectNewFruit();
     }
 
+    GameObject PickFruit()
+    {
+        int start = PoolStart();
+        int count = highestUnlocked - start + 1;
+        if (chain == null || count <= 0)
+            return ApplePrefab;
+
+        int index = start + PickWeightedIndex(count);
+        if (index < 0 || index >= chain.Length || chain[index] == null)
+            return ApplePrefab;
+
+        return chain[index];
+    }
+
+    int PoolStart()
+    {
+        int unlockedCount = highestUnlocked + 1;
+        if (unlockedCount <= DropWindow)
+            return 0;
+
+        return unlockedCount - DropWindow;
+    }
+
+    static int PickWeightedIndex(int count)
+    {
+        if (count <= 1)
+            return 0;
+
+        int total = 0;
+        for (int i = 0; i < count; i++)
+            total += WeightAt(i, count);
+
+        int roll = Random.Range(0, total);
+        int accumulated = 0;
+        for (int i = 0; i < count; i++)
+        {
+            accumulated += WeightAt(i, count);
+            if (roll < accumulated)
+                return i;
+        }
+
+        return count - 1;
+    }
+
+    static int WeightAt(int index, int count)
+    {
+        int peak = PeakIndex < count ? PeakIndex : count - 1;
+        int distance = index >= peak ? index - peak : peak - index;
+        int farEdge = count - 1 - peak;
+        int maxDistance = peak > farEdge ? peak : farEdge;
+        int weight = 1;
+        for (int step = distance; step < maxDistance; step++)
+            weight *= WeightStep;
+
+        return weight;
+    }
+
+    bool IsInPool(GameObject prefab)
+    {
+        if (prefab == null || chain == null)
+            return false;
+
+        int start = PoolStart();
+        for (int i = start; i <= highestUnlocked && i < chain.Length; i++)
+        {
+            if (chain[i] == prefab)
+                return true;
+        }
+
+        return false;
+    }
+
     float PreviewRadius()
     {
         if (pickedFruit == null)
@@ -218,6 +318,8 @@ public class SpawnerController : MonoBehaviour
     {
         StopAllCoroutines();
         onCooldown = false;
+        highestUnlocked = 0;
+        SelectNewFruit();
     }
 
     IEnumerator SpawnCooldown()
