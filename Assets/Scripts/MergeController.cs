@@ -117,6 +117,8 @@ public class MergeController : MonoBehaviour
             go = Instantiate(fruitToSpawn, spawnPos, Quaternion.identity);
             if (GameController.Instance != null && GameController.Instance.fruitHolder != null)
                 go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
+            if (GameController.Instance != null)
+                GameController.Instance.ApplyFruitScale(go.transform);
 
             spawned = go.GetComponent<FruitController>();
             if (spawned != null)
@@ -162,6 +164,9 @@ public class MergeController : MonoBehaviour
             float duration = growTime + tier * growTimePerTier;
             StartCoroutine(SettleInPlace(go, rb, fullScale, duration));
         }
+
+        if (GameController.Instance != null)
+            GameController.Instance.WriteSave();
     }
 
     void PlayMergeParticles(Vector3 position, FruitController fruit)

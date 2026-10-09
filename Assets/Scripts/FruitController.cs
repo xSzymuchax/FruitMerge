@@ -66,6 +66,12 @@ public class FruitController : MonoBehaviour
             return;
 
         GameController game = GameController.Instance;
+        if (game.IsDangerPaused)
+        {
+            timeInDanger = 0f;
+            return;
+        }
+
         if (Time.time < spawnTime + game.gracePeriod)
             return;
 

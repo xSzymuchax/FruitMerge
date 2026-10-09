@@ -19,7 +19,8 @@ public class SpawnerController : MonoBehaviour
     public Color blockedPreviewColor = new Color(1f, 0.42f, 0.38f, 0.55f);
     public float blockedOverlap = 0.82f;
 
-    const int DropWindow = 9;
+    const int ClassicWindow = 5;
+    const int SmallWindow = 10;
     const int WeightStep = 3;
     const int PeakIndex = 1;
 
@@ -42,7 +43,8 @@ public class SpawnerController : MonoBehaviour
     {
         BuildChain();
         highestUnlocked = 0;
-        SelectNewFruit();
+        if (GameController.Instance != null)
+            GameController.Instance.BeginSession();
     }
 
     void BuildChain()
@@ -68,10 +70,82 @@ public class SpawnerController : MonoBehaviour
         highestUnlocked = index;
         if (!IsInPool(pickedFruit))
             SelectNewFruit();
+        if (GameController.Instance != null)
+            GameController.Instance.RefreshFruitLegend();
+    }
+
+    public int HighestUnlocked
+    {
+        get { return highestUnlocked; }
+    }
+
+    public int NextFruitType
+    {
+        get
+        {
+            if (pickedFruit == null)
+                return -1;
+
+            FruitController fruit = pickedFruit.GetComponent<FruitController>();
+            return fruit != null ? (int)fruit.Type : -1;
+        }
+    }
+
+    public void RestoreRound(int unlocked, int nextType, FruitSave[] fruits)
+    {
+        highestUnlocked = unlocked < 0 ? 0 : unlocked;
+        SpawnSavedFruits(fruits);
+
+        GameObject next = null;
+        if (chain != null && nextType >= 0 && nextType < chain.Length)
+            next = chain[nextType];
+
+        pickedFruit = next != null ? next : PickFruit();
+        CreatePreview();
+        ShowNextLabel();
+    }
+
+    void SpawnSavedFruits(FruitSave[] fruits)
+    {
+        if (fruits == null || GameController.Instance == null || GameController.Instance.fruitHolder == null)
+            return;
+
+        for (int i = 0; i < fruits.Length; i++)
+        {
+            FruitSave saved = fruits[i];
+            if (chain == null || saved.type < 0 || saved.type >= chain.Length || chain[saved.type] == null)
+                continue;
+
+            var position = new Vector3(saved.x, saved.y, saved.z);
+            GameObject go = Instantiate(chain[saved.type], position, Quaternion.Euler(0f, 0f, saved.angle));
+            go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
+            GameController.Instance.ApplyFruitScale(go.transform);
+
+            SpriteRenderer sprite = go.GetComponent<SpriteRenderer>();
+            if (sprite != null)
+                sprite.flipX = saved.flipX;
+
+            Rigidbody2D body = go.GetComponent<Rigidbody2D>();
+            if (body != null)
+            {
+                body.position = position;
+                body.rotation = saved.angle;
+                body.velocity = Vector2.zero;
+                body.angularVelocity = 0f;
+            }
+        }
     }
 
     void Update()
     {
+        if (GameController.Instance != null && !GameController.Instance.IsPlaying)
+        {
+            if (preview != null)
+                preview.SetActive(false);
+            trackingTouch = false;
+            return;
+        }
+
         if (GameController.Instance != null && GameController.Instance.IsGameOver)
         {
             if (preview != null)
@@ -114,7 +188,11 @@ public class SpawnerController : MonoBehaviour
     {
         pickedFruit = PickFruit();
         CreatePreview();
+        ShowNextLabel();
+    }
 
+    void ShowNextLabel()
+    {
         if (pickedFruit == null || nextFruitText == null)
             return;
 
@@ -139,6 +217,8 @@ public class SpawnerController : MonoBehaviour
         start.z = 0f;
         preview = Instantiate(pickedFruit, start, Quaternion.identity);
         preview.name = "Preview";
+        if (GameController.Instance != null)
+            GameController.Instance.ApplyFruitScale(preview.transform);
 
         FruitController fruit = preview.GetComponent<FruitController>();
         if (fruit != null)
@@ -204,6 +284,8 @@ public class SpawnerController : MonoBehaviour
             GameController.Instance.ResetCombo();
         if (GameController.Instance != null && GameController.Instance.fruitHolder != null)
             go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
+        if (GameController.Instance != null)
+            GameController.Instance.ApplyFruitScale(go.transform);
 
         FruitController fruit = go.GetComponent<FruitController>();
         if (fruit != null)
@@ -217,12 +299,17 @@ public class SpawnerController : MonoBehaviour
         }
 
         SelectNewFruit();
+        if (GameController.Instance != null)
+        {
+            GameController.Instance.OnFruitDropped();
+            GameController.Instance.WriteSave();
+        }
     }
 
     GameObject PickFruit()
     {
         int start = PoolStart();
-        int count = highestUnlocked - start + 1;
+        int count = PoolCount();
         if (chain == null || count <= 0)
             return ApplePrefab;
 
@@ -235,11 +322,67 @@ public class SpawnerController : MonoBehaviour
 
     int PoolStart()
     {
-        int unlockedCount = highestUnlocked + 1;
-        if (unlockedCount <= DropWindow)
+        if (!WindowSlides())
             return 0;
 
-        return unlockedCount - DropWindow;
+        int unlockedCount = highestUnlocked + 1;
+        int window = WindowSize();
+        if (unlockedCount <= window)
+            return 0;
+
+        return unlockedCount - window;
+    }
+
+    int PoolCount()
+    {
+        int count = highestUnlocked + 1 - PoolStart();
+        int window = WindowSize();
+        if (count > window)
+            count = window;
+        if (count < 1)
+            count = 1;
+        return count;
+    }
+
+    int WindowSize()
+    {
+        if (GameController.Instance != null && GameController.Instance.Mode == GameMode.SmallFruits)
+            return SmallWindow;
+
+        return ClassicWindow;
+    }
+
+    bool WindowSlides()
+    {
+        return GameController.Instance != null && GameController.Instance.Mode == GameMode.SmallFruits;
+    }
+
+    public void RerollNext()
+    {
+        if (PoolCount() <= 1)
+            return;
+
+        GameObject previous = pickedFruit;
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            SelectNewFruit();
+            if (pickedFruit != previous)
+                return;
+        }
+    }
+
+    public Sprite FruitSprite(int index)
+    {
+        if (chain == null || index < 0 || index >= chain.Length || chain[index] == null)
+            return null;
+
+        SpriteRenderer sprite = chain[index].GetComponent<SpriteRenderer>();
+        return sprite != null ? sprite.sprite : null;
+    }
+
+    public int FruitCount
+    {
+        get { return chain != null ? chain.Length : 0; }
     }
 
     static int PickWeightedIndex(int count)
@@ -282,7 +425,8 @@ public class SpawnerController : MonoBehaviour
             return false;
 
         int start = PoolStart();
-        for (int i = start; i <= highestUnlocked && i < chain.Length; i++)
+        int count = PoolCount();
+        for (int i = start; i < start + count && i < chain.Length; i++)
         {
             if (chain[i] == prefab)
                 return true;
@@ -297,10 +441,10 @@ public class SpawnerController : MonoBehaviour
             return 0.3f;
 
         CircleCollider2D circle = pickedFruit.GetComponent<CircleCollider2D>();
-        if (circle == null)
+        if (circle == null || GameController.Instance == null)
             return 0.3f;
 
-        return circle.radius * Mathf.Abs(pickedFruit.transform.localScale.x);
+        return circle.radius * GameController.Instance.FruitRadiusScale(pickedFruit);
     }
 
     static bool IsPointerOverUi(int pointerId)
@@ -320,6 +464,23 @@ public class SpawnerController : MonoBehaviour
         onCooldown = false;
         highestUnlocked = 0;
         SelectNewFruit();
+    }
+
+    public void StopRound()
+    {
+        StopAllCoroutines();
+        onCooldown = false;
+        trackingTouch = false;
+        highestUnlocked = 0;
+        pickedFruit = null;
+        if (preview != null)
+        {
+            Destroy(preview);
+            preview = null;
+        }
+
+        if (nextFruitText != null)
+            nextFruitText.text = "";
     }
 
     IEnumerator SpawnCooldown()
