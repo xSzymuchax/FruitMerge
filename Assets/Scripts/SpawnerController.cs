@@ -2,13 +2,20 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class SpawnerController : MonoBehaviour
 {
     public static SpawnerController Instance;
 
     public TextMeshProUGUI nextFruitText;
+    public Image nextFruitIconLeft;
+    public Image nextFruitIconRight;
+    public float nextFruitIconGap = 8f;
     public GameObject ApplePrefab;
+    public GameObject jokerPrefab;
+    public float jokerChance = 0.05f;
+    public string jokerLabel = "Joker";
     public Transform leftBoundary;
     public Transform rightBoundary;
     public Transform dropPoint;
@@ -19,14 +26,16 @@ public class SpawnerController : MonoBehaviour
     public Color blockedPreviewColor = new Color(1f, 0.42f, 0.38f, 0.55f);
     public float blockedOverlap = 0.82f;
 
-    const int ClassicWindow = 5;
-    const int SmallWindow = 10;
-    const int WeightStep = 3;
-    const int PeakIndex = 1;
+    const int ClassicWindow = 7;
+    const int ClassicCenterIndex = 4;
+    const float ClassicSigma = 1.5576196f;
 
     GameObject[] chain;
     int highestUnlocked;
     GameObject pickedFruit;
+    bool pickedIsJoker;
+    GameObject queuedFruit;
+    bool queuedIsJoker;
     GameObject preview;
     SpriteRenderer previewSprite;
     bool onCooldown;
@@ -68,8 +77,17 @@ public class SpawnerController : MonoBehaviour
             return;
 
         highestUnlocked = index;
-        if (!IsInPool(pickedFruit))
-            SelectNewFruit();
+        if (!pickedIsJoker && !IsInPool(pickedFruit))
+        {
+            RollFruit(out pickedFruit, out pickedIsJoker);
+            CreatePreview();
+        }
+
+        if (!queuedIsJoker && !IsInPool(queuedFruit))
+        {
+            RollFruit(out queuedFruit, out queuedIsJoker);
+            ShowNextLabel();
+        }
         if (GameController.Instance != null)
             GameController.Instance.RefreshFruitLegend();
     }
@@ -83,7 +101,7 @@ public class SpawnerController : MonoBehaviour
     {
         get
         {
-            if (pickedFruit == null)
+            if (pickedIsJoker || pickedFruit == null)
                 return -1;
 
             FruitController fruit = pickedFruit.GetComponent<FruitController>();
@@ -91,16 +109,50 @@ public class SpawnerController : MonoBehaviour
         }
     }
 
-    public void RestoreRound(int unlocked, int nextType, FruitSave[] fruits)
+    public bool NextIsJoker
+    {
+        get { return pickedIsJoker; }
+    }
+
+    public int QueuedFruitType
+    {
+        get
+        {
+            if (queuedIsJoker || queuedFruit == null)
+                return -1;
+
+            FruitController fruit = queuedFruit.GetComponent<FruitController>();
+            return fruit != null ? (int)fruit.Type : -1;
+        }
+    }
+
+    public bool QueuedIsJoker
+    {
+        get { return queuedIsJoker; }
+    }
+
+    public void RestoreRound(int unlocked, int currentType, bool currentJoker, int followingType, bool followingJoker, bool hasFollowing, FruitSave[] fruits)
     {
         highestUnlocked = unlocked < 0 ? 0 : unlocked;
         SpawnSavedFruits(fruits);
 
-        GameObject next = null;
-        if (chain != null && nextType >= 0 && nextType < chain.Length)
-            next = chain[nextType];
+        GameObject current = FruitFromSave(currentType, currentJoker);
+        if (current == null)
+            RollFruit(out current, out currentJoker);
+        pickedFruit = current;
+        pickedIsJoker = currentJoker;
 
-        pickedFruit = next != null ? next : PickFruit();
+        if (!hasFollowing)
+            RollFruit(out queuedFruit, out queuedIsJoker);
+        else
+        {
+            GameObject following = FruitFromSave(followingType, followingJoker);
+            if (following == null)
+                RollFruit(out following, out followingJoker);
+            queuedFruit = following;
+            queuedIsJoker = followingJoker;
+        }
+
         CreatePreview();
         ShowNextLabel();
     }
@@ -113,13 +165,22 @@ public class SpawnerController : MonoBehaviour
         for (int i = 0; i < fruits.Length; i++)
         {
             FruitSave saved = fruits[i];
-            if (chain == null || saved.type < 0 || saved.type >= chain.Length || chain[saved.type] == null)
+            GameObject prefab = null;
+            if (saved.joker && jokerPrefab != null)
+                prefab = jokerPrefab;
+            else if (chain != null && saved.type >= 0 && saved.type < chain.Length)
+                prefab = chain[saved.type];
+            if (prefab == null)
                 continue;
 
             var position = new Vector3(saved.x, saved.y, saved.z);
-            GameObject go = Instantiate(chain[saved.type], position, Quaternion.Euler(0f, 0f, saved.angle));
+            GameObject go = Instantiate(prefab, position, Quaternion.Euler(0f, 0f, saved.angle));
             go.transform.SetParent(GameController.Instance.fruitHolder.transform, true);
             GameController.Instance.ApplyFruitScale(go.transform);
+
+            FruitController fruit = go.GetComponent<FruitController>();
+            if (fruit != null)
+                fruit.IsJoker = saved.joker;
 
             SpriteRenderer sprite = go.GetComponent<SpriteRenderer>();
             if (sprite != null)
@@ -186,20 +247,101 @@ public class SpawnerController : MonoBehaviour
 
     void SelectNewFruit()
     {
-        pickedFruit = PickFruit();
+        RollFruit(out pickedFruit, out pickedIsJoker);
+        RollFruit(out queuedFruit, out queuedIsJoker);
         CreatePreview();
         ShowNextLabel();
     }
 
+    void AdvanceFruit()
+    {
+        pickedFruit = queuedFruit;
+        pickedIsJoker = queuedIsJoker;
+        RollFruit(out queuedFruit, out queuedIsJoker);
+        CreatePreview();
+        ShowNextLabel();
+    }
+
+    void RollFruit(out GameObject fruit, out bool joker)
+    {
+        if (CanDropJoker() && Random.value < jokerChance)
+        {
+            joker = true;
+            fruit = jokerPrefab;
+            return;
+        }
+
+        joker = false;
+        fruit = PickFruit();
+    }
+
+    GameObject FruitFromSave(int type, bool joker)
+    {
+        if (joker && jokerPrefab != null)
+            return jokerPrefab;
+        if (chain != null && type >= 0 && type < chain.Length)
+            return chain[type];
+        return null;
+    }
+
+    bool CanDropJoker()
+    {
+        return jokerPrefab != null
+            && GameController.Instance != null
+            && GameController.Instance.Mode == GameMode.Classic;
+    }
+
     void ShowNextLabel()
     {
-        if (pickedFruit == null || nextFruitText == null)
+        string caption = "";
+        Sprite sprite = null;
+        if (queuedFruit != null)
+        {
+            caption = queuedIsJoker ? jokerLabel : FruitCaption(queuedFruit);
+            sprite = SpriteOf(queuedFruit);
+        }
+
+        if (nextFruitText != null)
+            nextFruitText.text = caption;
+
+        PlaceNextIcon(nextFruitIconLeft, sprite, -1f);
+        PlaceNextIcon(nextFruitIconRight, sprite, 1f);
+    }
+
+    static string FruitCaption(GameObject prefab)
+    {
+        FruitController fruit = prefab.GetComponent<FruitController>();
+        if (fruit != null && !string.IsNullOrEmpty(fruit.displayName))
+            return fruit.displayName;
+
+        return prefab.name;
+    }
+
+    Sprite SpriteOf(GameObject prefab)
+    {
+        if (prefab == null)
+            return null;
+
+        SpriteRenderer sprite = prefab.GetComponent<SpriteRenderer>();
+        return sprite != null ? sprite.sprite : null;
+    }
+
+    void PlaceNextIcon(Image icon, Sprite sprite, float side)
+    {
+        if (icon == null)
             return;
 
-        FruitController fruit = pickedFruit.GetComponent<FruitController>();
-        nextFruitText.text = fruit != null && !string.IsNullOrEmpty(fruit.displayName)
-            ? fruit.displayName
-            : pickedFruit.name;
+        icon.sprite = sprite;
+        icon.enabled = sprite != null;
+        if (sprite == null || nextFruitText == null)
+            return;
+
+        nextFruitText.ForceMeshUpdate();
+        float half = nextFruitText.GetPreferredValues(nextFruitText.text).x * 0.5f;
+        float reach = half + nextFruitIconGap + icon.rectTransform.rect.width * 0.5f;
+        Vector2 position = icon.rectTransform.anchoredPosition;
+        position.x = side * reach;
+        icon.rectTransform.anchoredPosition = position;
     }
 
     void CreatePreview()
@@ -289,7 +431,10 @@ public class SpawnerController : MonoBehaviour
 
         FruitController fruit = go.GetComponent<FruitController>();
         if (fruit != null)
+        {
+            fruit.IsJoker = pickedIsJoker;
             fruit.ApplyRandomLook();
+        }
 
         Rigidbody2D rb = go.GetComponent<Rigidbody2D>();
         if (rb != null)
@@ -298,7 +443,7 @@ public class SpawnerController : MonoBehaviour
             rb.angularVelocity = 0f;
         }
 
-        SelectNewFruit();
+        AdvanceFruit();
         if (GameController.Instance != null)
         {
             GameController.Instance.OnFruitDropped();
@@ -313,7 +458,7 @@ public class SpawnerController : MonoBehaviour
         if (chain == null || count <= 0)
             return ApplePrefab;
 
-        int index = start + PickWeightedIndex(count);
+        int index = start + PickIndex(count);
         if (index < 0 || index >= chain.Length || chain[index] == null)
             return ApplePrefab;
 
@@ -322,53 +467,41 @@ public class SpawnerController : MonoBehaviour
 
     int PoolStart()
     {
-        if (!WindowSlides())
-            return 0;
-
-        int unlockedCount = highestUnlocked + 1;
-        int window = WindowSize();
-        if (unlockedCount <= window)
-            return 0;
-
-        return unlockedCount - window;
+        return 0;
     }
 
     int PoolCount()
     {
-        int count = highestUnlocked + 1 - PoolStart();
-        int window = WindowSize();
-        if (count > window)
-            count = window;
+        int count = highestUnlocked + 1;
         if (count < 1)
             count = 1;
+        if (chain != null && count > chain.Length)
+            count = chain.Length;
+        if (UsesClassicWindow() && count > ClassicWindow)
+            count = ClassicWindow;
         return count;
     }
 
-    int WindowSize()
+    bool UsesClassicWindow()
     {
-        if (GameController.Instance != null && GameController.Instance.Mode == GameMode.SmallFruits)
-            return SmallWindow;
-
-        return ClassicWindow;
-    }
-
-    bool WindowSlides()
-    {
-        return GameController.Instance != null && GameController.Instance.Mode == GameMode.SmallFruits;
+        return GameController.Instance == null || GameController.Instance.Mode != GameMode.SmallFruits;
     }
 
     public void RerollNext()
     {
-        if (PoolCount() <= 1)
+        if (PoolCount() <= 1 && !pickedIsJoker)
             return;
 
         GameObject previous = pickedFruit;
+        bool previousJoker = pickedIsJoker;
         for (int attempt = 0; attempt < 8; attempt++)
         {
-            SelectNewFruit();
-            if (pickedFruit != previous)
-                return;
+            RollFruit(out pickedFruit, out pickedIsJoker);
+            if (pickedFruit != previous || pickedIsJoker != previousJoker)
+                break;
         }
+
+        CreatePreview();
     }
 
     public Sprite FruitSprite(int index)
@@ -385,20 +518,29 @@ public class SpawnerController : MonoBehaviour
         get { return chain != null ? chain.Length : 0; }
     }
 
-    static int PickWeightedIndex(int count)
+    int PickIndex(int count)
     {
         if (count <= 1)
             return 0;
 
-        int total = 0;
-        for (int i = 0; i < count; i++)
-            total += WeightAt(i, count);
+        if (GameController.Instance != null && GameController.Instance.Mode == GameMode.SmallFruits)
+            return Random.Range(0, count);
 
-        int roll = Random.Range(0, total);
-        int accumulated = 0;
+        return PickNormalIndex(count);
+    }
+
+    int PickNormalIndex(int count)
+    {
+        float mean = ClassicMean();
+        float total = 0f;
+        for (int i = 0; i < count; i++)
+            total += NormalWeight(i, mean);
+
+        float roll = Random.Range(0f, total);
+        float accumulated = 0f;
         for (int i = 0; i < count; i++)
         {
-            accumulated += WeightAt(i, count);
+            accumulated += NormalWeight(i, mean);
             if (roll < accumulated)
                 return i;
         }
@@ -406,17 +548,20 @@ public class SpawnerController : MonoBehaviour
         return count - 1;
     }
 
-    static int WeightAt(int index, int count)
+    float ClassicMean()
     {
-        int peak = PeakIndex < count ? PeakIndex : count - 1;
-        int distance = index >= peak ? index - peak : peak - index;
-        int farEdge = count - 1 - peak;
-        int maxDistance = peak > farEdge ? peak : farEdge;
-        int weight = 1;
-        for (int step = distance; step < maxDistance; step++)
-            weight *= WeightStep;
+        int fruitCount = chain != null && chain.Length > 1 ? chain.Length : 14;
+        int unlockedCount = highestUnlocked + 1;
+        if (unlockedCount > fruitCount)
+            unlockedCount = fruitCount;
 
-        return weight;
+        return ClassicCenterIndex * (unlockedCount - 1) / (float)(fruitCount - 1);
+    }
+
+    static float NormalWeight(int index, float mean)
+    {
+        float distance = index - mean;
+        return Mathf.Exp(-(distance * distance) / (2f * ClassicSigma * ClassicSigma));
     }
 
     bool IsInPool(GameObject prefab)
@@ -472,7 +617,10 @@ public class SpawnerController : MonoBehaviour
         onCooldown = false;
         trackingTouch = false;
         highestUnlocked = 0;
+        pickedIsJoker = false;
+        queuedIsJoker = false;
         pickedFruit = null;
+        queuedFruit = null;
         if (preview != null)
         {
             Destroy(preview);
@@ -481,6 +629,8 @@ public class SpawnerController : MonoBehaviour
 
         if (nextFruitText != null)
             nextFruitText.text = "";
+        PlaceNextIcon(nextFruitIconLeft, null, -1f);
+        PlaceNextIcon(nextFruitIconRight, null, 1f);
     }
 
     IEnumerator SpawnCooldown()

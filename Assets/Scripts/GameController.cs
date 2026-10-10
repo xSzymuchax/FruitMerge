@@ -42,8 +42,8 @@ public class GameController : MonoBehaviour
     public TextMeshProUGUI rerollLabel;
     public TextMeshProUGUI shakeLabel;
     public Image[] legendIcons;
-    public string rerollReadyText = "Z";
-    public string shakeReadyText = "T";
+    public string rerollReadyText = "";
+    public string shakeReadyText = "";
     public int rerollCooldown = 10;
     public int shakeCooldown = 50;
 
@@ -158,7 +158,7 @@ public class GameController : MonoBehaviour
             IsPlaying = true;
             RefreshScore();
             if (SpawnerController.Instance != null)
-                SpawnerController.Instance.RestoreRound(data.highestUnlocked, data.nextFruit, data.fruits);
+                SpawnerController.Instance.RestoreRound(data.highestUnlocked, data.nextFruit, data.nextJoker, data.queuedFruit, data.queuedJoker, data.version >= 3, data.fruits);
             rerollLeft = data.rerollLeft;
             shakeLeft = data.shakeLeft;
             ShowPlayChrome();
@@ -215,6 +215,7 @@ public class GameController : MonoBehaviour
             fruits.Add(new FruitSave
             {
                 type = (int)fruit.Type,
+                joker = fruit.IsJoker,
                 x = child.position.x,
                 y = child.position.y,
                 z = child.position.z,
@@ -224,10 +225,16 @@ public class GameController : MonoBehaviour
         }
 
         int nextFruit = -1;
+        bool nextJoker = false;
+        int queuedFruit = -1;
+        bool queuedJoker = false;
         int unlocked = 0;
         if (SpawnerController.Instance != null)
         {
             nextFruit = SpawnerController.Instance.NextFruitType;
+            nextJoker = SpawnerController.Instance.NextIsJoker;
+            queuedFruit = SpawnerController.Instance.QueuedFruitType;
+            queuedJoker = SpawnerController.Instance.QueuedIsJoker;
             unlocked = SpawnerController.Instance.HighestUnlocked;
         }
 
@@ -238,6 +245,9 @@ public class GameController : MonoBehaviour
             combo = Combo,
             highestUnlocked = unlocked,
             nextFruit = nextFruit,
+            nextJoker = nextJoker,
+            queuedFruit = queuedFruit,
+            queuedJoker = queuedJoker,
             rerollLeft = rerollLeft,
             shakeLeft = shakeLeft,
             fruits = fruits.ToArray()
@@ -680,8 +690,11 @@ public class GameController : MonoBehaviour
             return;
 
         int before = SpawnerController.Instance.NextFruitType;
+        bool beforeJoker = SpawnerController.Instance.NextIsJoker;
         SpawnerController.Instance.RerollNext();
-        if (SpawnerController.Instance.NextFruitType == before && SpawnerController.Instance.FruitCount > 0)
+        if (SpawnerController.Instance.NextFruitType == before
+            && SpawnerController.Instance.NextIsJoker == beforeJoker
+            && SpawnerController.Instance.FruitCount > 0)
             return;
 
         rerollLeft = rerollCooldown;

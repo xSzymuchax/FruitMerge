@@ -4,7 +4,7 @@ using UnityEngine;
 
 public static class SaveGame
 {
-    const int Version = 2;
+    const int Version = 3;
 
     public static bool Exists()
     {
@@ -69,6 +69,9 @@ public class SaveData
     public int combo;
     public int highestUnlocked;
     public int nextFruit = -1;
+    public bool nextJoker;
+    public int queuedFruit = -1;
+    public bool queuedJoker;
     public int rerollLeft;
     public int shakeLeft;
     public FruitSave[] fruits;
@@ -78,6 +81,7 @@ public class SaveData
 public class FruitSave
 {
     public int type;
+    public bool joker;
     public float x;
     public float y;
     public float z;

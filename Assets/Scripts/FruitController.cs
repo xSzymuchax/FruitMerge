@@ -21,6 +21,7 @@ public class FruitController : MonoBehaviour
     }
 
     public FruitType Type;
+    public bool IsJoker;
     public bool Merged = false;
     public string displayName;
     public Color particleColorMin = Color.white;
@@ -53,7 +54,22 @@ public class FruitController : MonoBehaviour
             return;
 
         FruitController other = collision.gameObject.GetComponent<FruitController>();
-        if (other == null || other.Type != Type)
+        if (other == null || other.Merged)
+            return;
+
+        if (IsJoker || other.IsJoker)
+        {
+            if (IsJoker && other.IsJoker)
+                return;
+
+            FruitController fruit = IsJoker ? other : this;
+            FruitController joker = IsJoker ? this : other;
+            if (MergeController.Instance != null)
+                MergeController.Instance.AskMerge(fruit, joker);
+            return;
+        }
+
+        if (other.Type != Type)
             return;
 
         if (MergeController.Instance != null)
