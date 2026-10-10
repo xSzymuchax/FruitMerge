@@ -6,8 +6,9 @@ using UnityEngine.UI;
 
 public enum GameMode
 {
-    Classic,
-    SmallFruits
+    Mayhem,
+    SmallFruits,
+    Classic
 }
 
 public class GameController : MonoBehaviour
@@ -36,16 +37,21 @@ public class GameController : MonoBehaviour
     public float newRecordHoldTime = 0.4f;
     public float newRecordShrinkTime = 0.42f;
     public float newRecordPeakScale = 1.15f;
+    public ParticleSystem burstParticles;
     public GameObject playChrome;
     public Button rerollButton;
     public Button shakeButton;
+    public Button undoButton;
     public TextMeshProUGUI rerollLabel;
     public TextMeshProUGUI shakeLabel;
+    public TextMeshProUGUI undoLabel;
     public Image[] legendIcons;
     public string rerollReadyText = "";
     public string shakeReadyText = "";
+    public string undoReadyText = "C";
     public int rerollCooldown = 10;
     public int shakeCooldown = 50;
+    public int undoCooldown = 25;
 
     const string NewRecordName = "NewRecord";
 
@@ -55,14 +61,16 @@ public class GameController : MonoBehaviour
     public int Combo { get; private set; }
     public GameMode Mode { get; private set; }
 
-    float smallScale = 0.11f;
+    const float SmallFruitScale = 1.25f;
     GameObject modeMenu;
     int rerollLeft;
     int shakeLeft;
+    int undoLeft;
     bool shaking;
     float dangerPausedUntil;
     Vector2 restGravity;
-    const string ClassicScoreKey = "FruitMerge_BestScore";
+    const string MayhemScoreKey = "FruitMerge_BestScore";
+    const string PlainScoreKey = "FruitMerge_BestScore_Classic";
     const string SmallScoreKey = "FruitMerge_BestScore_Small";
 
     int best;
@@ -86,6 +94,8 @@ public class GameController : MonoBehaviour
             rerollButton.onClick.AddListener(UseReroll);
         if (shakeButton != null)
             shakeButton.onClick.AddListener(UseShake);
+        if (undoButton != null)
+            undoButton.onClick.AddListener(UseUndo);
         RefreshScore();
         EnsureOverlay(HudCanvas);
         EnsureOverlay(finalScoreCanvas);
@@ -158,9 +168,17 @@ public class GameController : MonoBehaviour
             IsPlaying = true;
             RefreshScore();
             if (SpawnerController.Instance != null)
-                SpawnerController.Instance.RestoreRound(data.highestUnlocked, data.nextFruit, data.nextJoker, data.queuedFruit, data.queuedJoker, data.version >= 3, data.fruits);
+                SpawnerController.Instance.RestoreRound(
+                    data.highestUnlocked,
+                    data.nextFruit,
+                    SavedDropKind(data.nextKind, data.nextJoker),
+                    data.queuedFruit,
+                    SavedDropKind(data.queuedKind, data.queuedJoker),
+                    data.version >= 3,
+                    data.fruits);
             rerollLeft = data.rerollLeft;
             shakeLeft = data.shakeLeft;
+            undoLeft = data.undoLeft;
             ShowPlayChrome();
             return;
         }
@@ -174,6 +192,11 @@ public class GameController : MonoBehaviour
         StartMode(GameMode.Classic);
     }
 
+    public void StartMayhem()
+    {
+        StartMode(GameMode.Mayhem);
+    }
+
     public void StartSmallFruits()
     {
         StartMode(GameMode.SmallFruits);
@@ -181,16 +204,16 @@ public class GameController : MonoBehaviour
 
     public void ApplyFruitScale(Transform target)
     {
-        if (target == null || Mode != GameMode.SmallFruits || smallScale <= 0f)
+        if (target == null || Mode != GameMode.SmallFruits)
             return;
 
-        target.localScale = new Vector3(smallScale, smallScale, smallScale);
+        target.localScale = SmallFruitSize();
     }
 
     public float FruitRadiusScale(GameObject prefab)
     {
-        if (Mode == GameMode.SmallFruits && smallScale > 0f)
-            return smallScale;
+        if (Mode == GameMode.SmallFruits)
+            return Mathf.Abs(SmallFruitSize().x);
 
         if (prefab == null)
             return 0.11f;
@@ -198,24 +221,76 @@ public class GameController : MonoBehaviour
         return Mathf.Abs(prefab.transform.localScale.x);
     }
 
+    Vector3 SmallFruitSize()
+    {
+        Vector3 apple = new Vector3(0.11f, 0.11f, 0.11f);
+        if (SpawnerController.Instance != null && SpawnerController.Instance.ApplePrefab != null)
+            apple = SpawnerController.Instance.ApplePrefab.transform.localScale;
+        return apple * SmallFruitScale;
+    }
+
+    public void StashPreviousMove()
+    {
+        SaveData data = Capture();
+        if (data != null)
+            SaveGame.WritePrevious(data);
+    }
+
     public void WriteSave()
     {
+        SaveData data = Capture();
+        if (data != null)
+            SaveGame.Write(data);
+    }
+
+    SaveData Capture()
+    {
         if (!IsPlaying || IsGameOver || fruitHolder == null)
-            return;
+            return null;
 
         var fruits = new List<FruitSave>();
         for (int i = 0; i < fruitHolder.transform.childCount; i++)
         {
             Transform child = fruitHolder.transform.GetChild(i);
+            if (!child.gameObject.activeInHierarchy)
+                continue;
+
+            if (child.GetComponent<KnifeController>() != null)
+            {
+                fruits.Add(new FruitSave
+                {
+                    bonus = (int)DropKind.Knife,
+                    x = child.position.x,
+                    y = child.position.y,
+                    z = child.position.z,
+                    angle = child.eulerAngles.z
+                });
+                continue;
+            }
+
             FruitController fruit = child.GetComponent<FruitController>();
             if (fruit == null || fruit.Merged)
                 continue;
+
+            int bonus = (int)DropKind.Fruit;
+            int fuse = 0;
+            if (fruit.IsJoker)
+                bonus = (int)DropKind.Joker;
+            if (fruit.IsBomb)
+            {
+                bonus = (int)DropKind.Bomb;
+                BombController bomb = fruit.GetComponent<BombController>();
+                if (bomb != null)
+                    fuse = bomb.TurnsLeft;
+            }
 
             SpriteRenderer sprite = child.GetComponent<SpriteRenderer>();
             fruits.Add(new FruitSave
             {
                 type = (int)fruit.Type,
                 joker = fruit.IsJoker,
+                bonus = bonus,
+                fuse = fuse,
                 x = child.position.x,
                 y = child.position.y,
                 z = child.position.z,
@@ -225,33 +300,77 @@ public class GameController : MonoBehaviour
         }
 
         int nextFruit = -1;
-        bool nextJoker = false;
+        int nextKind = 0;
         int queuedFruit = -1;
-        bool queuedJoker = false;
+        int queuedKind = 0;
         int unlocked = 0;
         if (SpawnerController.Instance != null)
         {
             nextFruit = SpawnerController.Instance.NextFruitType;
-            nextJoker = SpawnerController.Instance.NextIsJoker;
+            nextKind = SpawnerController.Instance.NextDropKind;
             queuedFruit = SpawnerController.Instance.QueuedFruitType;
-            queuedJoker = SpawnerController.Instance.QueuedIsJoker;
+            queuedKind = SpawnerController.Instance.QueuedDropKind;
             unlocked = SpawnerController.Instance.HighestUnlocked;
         }
 
-        SaveGame.Write(new SaveData
+        return new SaveData
         {
             mode = (int)Mode,
             points = points,
             combo = Combo,
             highestUnlocked = unlocked,
             nextFruit = nextFruit,
-            nextJoker = nextJoker,
+            nextJoker = nextKind == (int)DropKind.Joker,
+            nextKind = nextKind,
             queuedFruit = queuedFruit,
-            queuedJoker = queuedJoker,
+            queuedJoker = queuedKind == (int)DropKind.Joker,
+            queuedKind = queuedKind,
             rerollLeft = rerollLeft,
             shakeLeft = shakeLeft,
+            undoLeft = undoLeft,
             fruits = fruits.ToArray()
-        });
+        };
+    }
+
+    static int SavedDropKind(int kind, bool jokerFlag)
+    {
+        if (kind == (int)DropKind.Fruit && jokerFlag)
+            return (int)DropKind.Joker;
+        return kind;
+    }
+
+    public void ApplySavedMove(SaveData data)
+    {
+        if (data == null || fruitHolder == null)
+            return;
+
+        for (int i = fruitHolder.transform.childCount - 1; i >= 0; i--)
+        {
+            GameObject child = fruitHolder.transform.GetChild(i).gameObject;
+            child.SetActive(false);
+            Destroy(child);
+        }
+
+        points = data.points;
+        Combo = data.combo < 1 ? 1 : data.combo;
+        rerollLeft = data.rerollLeft;
+        shakeLeft = data.shakeLeft;
+        undoLeft = data.undoLeft;
+        if (SpawnerController.Instance != null)
+        {
+            SpawnerController.Instance.RestoreRound(
+                data.highestUnlocked,
+                data.nextFruit,
+                SavedDropKind(data.nextKind, data.nextJoker),
+                data.queuedFruit,
+                SavedDropKind(data.queuedKind, data.queuedJoker),
+                true,
+                data.fruits);
+        }
+
+        RefreshScore();
+        RefreshFruitLegend();
+        RefreshPerkLabels();
     }
 
     void OnApplicationPause(bool paused)
@@ -268,6 +387,27 @@ public class GameController : MonoBehaviour
     public bool IsDangerPaused
     {
         get { return Time.time < dangerPausedUntil; }
+    }
+
+    public void PlayBurst(Vector3 position, Color min, Color max)
+    {
+        if (burstParticles == null)
+            return;
+
+        ParticleSystem effect = Instantiate(burstParticles, position, Quaternion.identity);
+        effect.transform.position = new Vector3(position.x, position.y, -0.1f);
+        ParticleSystem.MainModule main = effect.main;
+        main.loop = false;
+        main.stopAction = ParticleSystemStopAction.Destroy;
+        main.startColor = new ParticleSystem.MinMaxGradient(min, max);
+        effect.Play();
+    }
+
+    public void PauseDanger(float seconds)
+    {
+        float until = Time.time + seconds;
+        if (until > dangerPausedUntil)
+            dangerPausedUntil = until;
     }
 
     public void TogglePause()
@@ -531,17 +671,20 @@ public class GameController : MonoBehaviour
             SpawnerController.Instance.ResetRound();
         rerollLeft = 0;
         shakeLeft = 0;
+        undoLeft = 0;
         ShowPlayChrome();
     }
 
     void SetMode(GameMode mode)
     {
         Mode = mode;
-        bestScoreKey = mode == GameMode.SmallFruits ? SmallScoreKey : ClassicScoreKey;
+        if (mode == GameMode.SmallFruits)
+            bestScoreKey = SmallScoreKey;
+        else if (mode == GameMode.Classic)
+            bestScoreKey = PlainScoreKey;
+        else
+            bestScoreKey = MayhemScoreKey;
         best = PlayerPrefs.GetInt(bestScoreKey, 0);
-        smallScale = 0.11f;
-        if (SpawnerController.Instance != null && SpawnerController.Instance.ApplePrefab != null)
-            smallScale = Mathf.Abs(SpawnerController.Instance.ApplePrefab.transform.localScale.x);
     }
 
     void ShowModeMenu()
@@ -577,15 +720,16 @@ public class GameController : MonoBehaviour
         Stretch(dim.rectTransform);
 
         var card = CreateImage("Card", root.transform, new Color(0.97f, 0.94f, 0.88f, 1f));
-        card.rectTransform.sizeDelta = new Vector2(760f, 520f);
+        card.rectTransform.sizeDelta = new Vector2(760f, 700f);
         card.rectTransform.anchoredPosition = Vector2.zero;
 
         var title = CreateLabel("Title", card.transform, "Wybierz tryb", 64, font, new Color(0.22f, 0.16f, 0.12f, 1f));
-        title.rectTransform.anchoredPosition = new Vector2(0f, 150f);
+        title.rectTransform.anchoredPosition = new Vector2(0f, 230f);
         title.rectTransform.sizeDelta = new Vector2(680f, 100f);
 
-        CreateButton("Classic", card.transform, "Classic", new Vector2(0f, 10f), new Color(0.36f, 0.58f, 0.32f, 1f), font, StartClassic);
-        CreateButton("SmallFruits", card.transform, "Small fruits", new Vector2(0f, -120f), new Color(0.86f, 0.52f, 0.24f, 1f), font, StartSmallFruits);
+        CreateButton("Classic", card.transform, "Classic", new Vector2(0f, 90f), new Color(0.36f, 0.58f, 0.32f, 1f), font, StartClassic);
+        CreateButton("Mayhem", card.transform, "Mayhem", new Vector2(0f, -40f), new Color(0.62f, 0.24f, 0.28f, 1f), font, StartMayhem);
+        CreateButton("SmallFruits", card.transform, "Small fruits", new Vector2(0f, -170f), new Color(0.86f, 0.52f, 0.24f, 1f), font, StartSmallFruits);
         return root;
     }
 
@@ -655,6 +799,9 @@ public class GameController : MonoBehaviour
             rerollLeft--;
         if (shakeLeft > 0)
             shakeLeft--;
+        if (undoLeft > 0)
+            undoLeft--;
+        TickBombs();
         RefreshPerkLabels();
     }
 
@@ -680,20 +827,27 @@ public class GameController : MonoBehaviour
     {
         if (playChrome != null)
             playChrome.SetActive(true);
+        bool perks = Mode == GameMode.Mayhem;
+        if (rerollButton != null)
+            rerollButton.gameObject.SetActive(perks);
+        if (shakeButton != null)
+            shakeButton.gameObject.SetActive(perks);
+        if (undoButton != null)
+            undoButton.gameObject.SetActive(perks);
         RefreshFruitLegend();
         RefreshPerkLabels();
     }
 
     void UseReroll()
     {
-        if (!IsPlaying || IsGameOver || IsPaused || rerollLeft > 0 || SpawnerController.Instance == null)
+        if (Mode != GameMode.Mayhem || !IsPlaying || IsGameOver || IsPaused || rerollLeft > 0 || SpawnerController.Instance == null)
             return;
 
         int before = SpawnerController.Instance.NextFruitType;
-        bool beforeJoker = SpawnerController.Instance.NextIsJoker;
+        int beforeKind = SpawnerController.Instance.NextDropKind;
         SpawnerController.Instance.RerollNext();
         if (SpawnerController.Instance.NextFruitType == before
-            && SpawnerController.Instance.NextIsJoker == beforeJoker
+            && SpawnerController.Instance.NextDropKind == beforeKind
             && SpawnerController.Instance.FruitCount > 0)
             return;
 
@@ -704,7 +858,7 @@ public class GameController : MonoBehaviour
 
     void UseShake()
     {
-        if (!IsPlaying || IsGameOver || IsPaused || shaking || shakeLeft > 0)
+        if (Mode != GameMode.Mayhem || !IsPlaying || IsGameOver || IsPaused || shaking || shakeLeft > 0)
             return;
 
         shakeLeft = shakeCooldown;
@@ -757,5 +911,36 @@ public class GameController : MonoBehaviour
             rerollLabel.text = rerollLeft > 0 ? rerollLeft.ToString() : rerollReadyText;
         if (shakeLabel != null)
             shakeLabel.text = shakeLeft > 0 ? shakeLeft.ToString() : shakeReadyText;
+        if (undoLabel != null)
+            undoLabel.text = undoLeft > 0 ? undoLeft.ToString() : undoReadyText;
+    }
+
+    void UseUndo()
+    {
+        if (Mode != GameMode.Mayhem || !IsPlaying || IsGameOver || IsPaused || undoLeft > 0)
+            return;
+
+        SaveData data;
+        if (!SaveGame.TryLoadPrevious(out data))
+            return;
+
+        ApplySavedMove(data);
+        undoLeft = undoCooldown;
+        SaveGame.ClearPrevious();
+        WriteSave();
+        RefreshPerkLabels();
+    }
+
+    void TickBombs()
+    {
+        if (fruitHolder == null)
+            return;
+
+        BombController[] bombs = fruitHolder.GetComponentsInChildren<BombController>();
+        for (int i = 0; i < bombs.Length; i++)
+        {
+            if (bombs[i] != null)
+                bombs[i].Tick();
+        }
     }
 }
