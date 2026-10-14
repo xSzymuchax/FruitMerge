@@ -3010,7 +3010,7 @@ MonoBehaviour:
   sadHorn: {fileID: 8300000, guid: ca2c6155573943e49b43085e0a54c071, type: 3}
   newRecord: {fileID: 8300000, guid: 00dd5ab4437885a4b8974f1824f1b162, type: 3}
   knife: {fileID: 8300000, guid: 4142791057f3b6b4ab7b53635ba53374, type: 3}
-  explosion: {fileID: 8300000, guid: 571fddafe84914f458fa81832ccf064a, type: 3}
+  explosion: {fileID: 8300000, guid: 9e35b698b295f374e927edf40246572c, type: 3}
 --- !u!81 &2066667342
 AudioListener:
   m_ObjectHideFlags: 0
