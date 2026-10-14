@@ -64,10 +64,10 @@ public class BombController : MonoBehaviour
         label.overflowMode = TextOverflowModes.Overflow;
         label.rectTransform.sizeDelta = new Vector2(8f, 4f);
 
-        float height = 2.4f;
+        float height = 16f;
         SpriteRenderer sprite = GetComponent<SpriteRenderer>();
         if (sprite != null && sprite.sprite != null)
-            height = sprite.sprite.bounds.size.y * 0.62f;
+            height = sprite.sprite.bounds.size.y * 4.2f;
         label.fontSize = height;
         label.ForceMeshUpdate();
         label.sortingOrder = 30;
@@ -88,6 +88,9 @@ public class BombController : MonoBehaviour
             game.PauseDanger(2.4f);
             game.PlayBurst(origin, new Color(0.08f, 0.08f, 0.08f, 1f), new Color(0.62f, 0.62f, 0.62f, 1f));
         }
+
+        if (AudioController.Instance != null)
+            AudioController.Instance.PlayExplosion();
 
         if (game != null && game.fruitHolder != null)
         {

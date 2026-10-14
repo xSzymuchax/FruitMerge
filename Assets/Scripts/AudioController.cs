@@ -14,6 +14,8 @@ public class AudioController : MonoBehaviour
     public AudioClip pop2;
     public AudioClip sadHorn;
     public AudioClip newRecord;
+    public AudioClip knife;
+    public AudioClip explosion;
 
     const string MusicKey = "FruitMerge_Music";
     const string EffectsKey = "FruitMerge_Effects";
@@ -97,13 +99,36 @@ public class AudioController : MonoBehaviour
         PlayEffect(newRecord, 1f);
     }
 
+    public void PlayKnife()
+    {
+        PlayEffect(knife, 1f);
+    }
+
+    public void PlayExplosion()
+    {
+        PlayEffect(explosion, 1f);
+    }
+
     void PlayEffect(AudioClip clip, float pitch)
     {
-        if (!EffectsOn || audioSource == null || clip == null)
+        if (!EffectsOn || clip == null)
             return;
 
-        audioSource.pitch = pitch;
-        audioSource.PlayOneShot(clip);
+        float safePitch = Mathf.Max(0.05f, pitch);
+        var go = new GameObject("Effect");
+        AudioSource source = go.AddComponent<AudioSource>();
+        source.playOnAwake = false;
+        source.spatialBlend = 0f;
+        source.pitch = safePitch;
+        if (audioSource != null)
+        {
+            source.volume = audioSource.volume;
+            source.outputAudioMixerGroup = audioSource.outputAudioMixerGroup;
+        }
+
+        source.clip = clip;
+        source.Play();
+        Destroy(go, clip.length / safePitch + 0.1f);
     }
 
     void ApplyMusic()

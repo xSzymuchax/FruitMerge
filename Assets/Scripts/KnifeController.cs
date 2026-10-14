@@ -20,6 +20,8 @@ public class KnifeController : MonoBehaviour
         fruit.Merged = true;
         fruit.gameObject.SetActive(false);
         gameObject.SetActive(false);
+        if (AudioController.Instance != null)
+            AudioController.Instance.PlayKnife();
         if (GameController.Instance != null)
         {
             GameController.Instance.PlayBurst(cutPosition, colorMin, colorMax);

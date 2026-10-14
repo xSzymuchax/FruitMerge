@@ -48,7 +48,7 @@ public class GameController : MonoBehaviour
     public Image[] legendIcons;
     public string rerollReadyText = "";
     public string shakeReadyText = "";
-    public string undoReadyText = "C";
+    public string undoReadyText = "";
     public int rerollCooldown = 10;
     public int shakeCooldown = 50;
     public int undoCooldown = 25;
